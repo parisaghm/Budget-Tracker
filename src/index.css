@@ -1,0 +1,291 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 30% 97%;
+    --foreground: 240 20% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 20% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 20% 12%;
+
+    --primary: 255 60% 52%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 25% 93%;
+    --secondary-foreground: 240 20% 12%;
+
+    --muted: 40 20% 91%;
+    --muted-foreground: 240 10% 46%;
+
+    --accent: 35 100% 55%;
+    --accent-foreground: 30 80% 18%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 30 80% 18%;
+
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 255 60% 52%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --font-sans: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    --shadow-sm: 0 1px 3px 0 hsl(240 20% 12% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(240 20% 12% / 0.06), 0 2px 4px -2px hsl(240 20% 12% / 0.04);
+    --shadow-lg: 0 12px 32px -4px hsl(240 20% 12% / 0.1), 0 4px 8px -4px hsl(240 20% 12% / 0.04);
+    --shadow-glow: 0 0 24px hsl(255 60% 52% / 0.15);
+
+    --gradient-primary: linear-gradient(135deg, hsl(255 60% 52%), hsl(280 60% 48%));
+    --gradient-accent: linear-gradient(135deg, hsl(35 100% 55%), hsl(25 100% 50%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 25% 98%));
+  }
+
+  .dark {
+    --background: 240 20% 7%;
+    --foreground: 40 20% 95%;
+
+    --card: 240 18% 11%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 240 18% 11%;
+    --popover-foreground: 40 20% 95%;
+
+    --primary: 255 65% 62%;
+    --primary-foreground: 240 20% 7%;
+
+    --secondary: 240 15% 16%;
+    --secondary-foreground: 40 20% 95%;
+
+    --muted: 240 15% 16%;
+    --muted-foreground: 240 10% 55%;
+
+    --accent: 35 100% 58%;
+    --accent-foreground: 30 80% 12%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 70% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 80% 52%;
+    --warning-foreground: 30 80% 12%;
+
+    --border: 240 15% 20%;
+    --input: 240 15% 20%;
+    --ring: 255 65% 62%;
+
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.25);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.35), 0 2px 4px -2px hsl(0 0% 0% / 0.2);
+    --shadow-lg: 0 12px 32px -4px hsl(0 0% 0% / 0.45), 0 4px 8px -4px hsl(0 0% 0% / 0.25);
+    --shadow-glow: 0 0 32px hsl(255 65% 62% / 0.2);
+
+    --gradient-primary: linear-gradient(135deg, hsl(255 65% 62%), hsl(280 60% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(35 100% 58%), hsl(25 100% 52%));
+    --gradient-card: linear-gradient(180deg, hsl(240 18% 11%), hsl(240 18% 10%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .card-elevated {
+    @apply bg-card rounded-2xl border border-border;
+    box-shadow: var(--shadow-md);
+  }
+
+  .card-glass {
+    @apply bg-card/80 backdrop-blur-xl rounded-2xl border border-border/50;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .money-display {
+    @apply font-mono font-medium tabular-nums;
+  }
+
+  .progress-track {
+    @apply h-3 w-full rounded-full bg-muted overflow-hidden;
+  }
+
+  .progress-bar {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+    background: var(--gradient-primary);
+  }
+
+  .input-clean {
+    @apply w-full px-4 py-3 rounded-xl border border-input bg-background text-foreground;
+    @apply placeholder:text-muted-foreground;
+    @apply focus:outline-none focus:ring-2 focus:ring-ring/30 focus:border-primary;
+    @apply transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold;
+    @apply text-primary-foreground;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98];
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-md);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-semibold;
+    @apply bg-secondary text-secondary-foreground;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:bg-secondary/80 active:scale-[0.98];
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center px-3 py-2 rounded-xl font-medium;
+    @apply text-muted-foreground;
+    @apply transition-all duration-200 ease-out;
+    @apply hover:bg-muted hover:text-foreground;
+  }
+
+  .btn-icon {
+    @apply inline-flex items-center justify-center w-10 h-10 rounded-xl;
+    @apply text-muted-foreground;
+    @apply transition-all duration-200;
+    @apply hover:bg-muted hover:text-foreground;
+  }
+
+  .stat-card {
+    @apply card-elevated p-6 flex flex-col gap-1.5;
+  }
+
+  .stat-label {
+    @apply text-sm text-muted-foreground font-medium uppercase tracking-wider;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold money-display;
+  }
+
+  .expense-row {
+    @apply flex flex-col items-start gap-3 px-4 py-3 rounded-xl sm:flex-row sm:items-center sm:gap-4 sm:px-5 sm:py-4;
+    @apply transition-all duration-150;
+    @apply hover:bg-muted/50;
+  }
+
+  .category-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide;
+  }
+
+  .category-groceries {
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300;
+  }
+
+  .category-shopping {
+    @apply bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300;
+  }
+
+  .category-entertainment {
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300;
+  }
+
+  .category-other {
+    @apply bg-slate-100 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300;
+  }
+}
+
+@layer utilities {
+  .animate-slide-up {
+    animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @media print {
+    body {
+      background: #ffffff !important;
+      color: #000000 !important;
+      margin: 0;
+    }
+
+    .no-print {
+      display: none !important;
+    }
+
+    .report-page {
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+    }
+
+    @page {
+      margin: 16mm;
+    }
+  }
+}
