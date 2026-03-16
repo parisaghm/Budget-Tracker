@@ -4,7 +4,7 @@ A modern personal finance dashboard that helps users track income, expenses, sav
 
 **Use your preferred IDE**
 
-##  🔗 Live Demo:
+ 🔗 Live Demo:
 https://budget-tracker-ozdbj71ql-parisaghasemi566gmailcoms-projects.vercel.app/dashboard
 
 
