@@ -46,19 +46,19 @@ The dashboard provides a clear overview of your financial status:
 
 
 
-Clone this repo and push changes. You need Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+🚀 Getting Started
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Step 1: Clone the repository:
+git clone https://github.com/your-username/budget-tracker.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Step 2: Go to the project folder:
+cd budget-tracker
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Step 3: Install dependencies:
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Run the development server:
 npm run dev
 ```
 
