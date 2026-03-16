@@ -46,7 +46,7 @@ The dashboard provides a clear overview of your financial status:
 
 
 
-🚀 Getting Started
+## 🚀 Getting Started
 
 ```sh
 # Step 1: Clone the repository:
@@ -62,26 +62,15 @@ npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 🎯 Future Improvements
+- Bank account integrations
+- Automatic expense import
+- AI spending insights
+- Financial forecasting
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 👩‍💻 Author
 
-**Use GitHub Codespaces**
+Parisa Ghasemi
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## Technologies used
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## ⭐ If you like this project
+Give the repository a star ⭐ to support the project.
