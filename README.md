@@ -2,14 +2,13 @@
 
 A modern personal finance dashboard that helps users track income, expenses, savings goals, and monthly budgets with visual insights.
 
-**Use your preferred IDE**
 
  ## 🔗 Live Demo:
 https://budget-tracker-ozdbj71ql-parisaghasemi566gmailcoms-projects.vercel.app/dashboard
 
 
 
-## How can I edit this code?
+## 📊 Features
 
 **Use your preferred IDE**
 
