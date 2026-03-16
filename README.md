@@ -10,7 +10,26 @@ https://budget-tracker-ozdbj71ql-parisaghasemi566gmailcoms-projects.vercel.app/d
 
 ## 📊 Features
 
-**Use your preferred IDE**
+- Track monthly income and expenses
+- Categorize spending (Groceries, Rent, Insurance, etc.)
+- Spending analytics with charts
+- Planned vs Actual budgeting
+- Savings goals tracking
+- Income history tracking
+- Monthly comparison reports
+- Export monthly reports
+- PWA ready (installable web app)
+
+## 🖼️ Dashboard Overview
+The dashboard provides a clear overview of your financial status:
+
+- Remaining budget this month
+- Spending by category
+- Recent transactions
+- Monthly budget limits
+- Savings goals progress
+- Income history comparison
+
 
 Clone this repo and push changes. You need Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
