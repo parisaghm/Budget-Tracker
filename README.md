@@ -1,10 +1,10 @@
-💰 Budget Tracker
+##💰 Budget Tracker
 
 A modern personal finance dashboard that helps users track income, expenses, savings goals, and monthly budgets with visual insights.
 
 **Use your preferred IDE**
 
- 🔗 Live Demo:
+ ##🔗 Live Demo:
 https://budget-tracker-ozdbj71ql-parisaghasemi566gmailcoms-projects.vercel.app/dashboard
 
 
