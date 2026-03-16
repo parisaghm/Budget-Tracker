@@ -30,6 +30,20 @@ The dashboard provides a clear overview of your financial status:
 - Savings goals progress
 - Income history comparison
 
+## 🛠 Tech Stack
+
+Frontend
+- Next.js
+- React
+- TypeScript
+- TypeScript
+
+Backend / Database
+- Supabase
+Charts & Visualization
+- Chart libraries for financial analytics
+
+
 
 Clone this repo and push changes. You need Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
