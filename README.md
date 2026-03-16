@@ -32,15 +32,16 @@ The dashboard provides a clear overview of your financial status:
 
 ## 🛠 Tech Stack
 
-Frontend
+## Frontend
 - Next.js
 - React
 - TypeScript
 - TypeScript
 
-Backend / Database
+## Backend / Database
 - Supabase
-Charts & Visualization
+
+## Charts & Visualization
 - Chart libraries for financial analytics
 
 
