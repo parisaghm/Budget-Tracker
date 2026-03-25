@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
-import { useFinanceData } from '@/hooks/useFinanceData';
+import { useSupabaseFinanceData } from '@/hooks/useSupabaseFinanceData';
+import { useAuth } from '@/context/AuthContext';
+import { hasSupabaseEnv, supabase, supabaseEnvError } from '@/lib/supabase/client';
 import { MonthSelector } from '@/components/MonthSelector';
 import { SalarySetup } from '@/components/SalarySetup';
 import { BudgetSummary } from '@/components/BudgetSummary';
@@ -11,11 +14,35 @@ import { ExpenseForm } from '@/components/ExpenseForm';
 import { ExpenseList } from '@/components/ExpenseList';
 import { CategoryChart } from '@/components/CategoryChart';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { CurrencySelector } from '@/components/CurrencySelector';
 import { Switch } from '@/components/ui/switch';
 import type { Category } from '@/types/finance';
 import { formatMoney } from '@/utils/money';
 
+function displayNameFromUser(user: User | null | undefined): string {
+  if (!user) return '';
+  const m = user.user_metadata ?? {};
+  const candidates = [
+    m.full_name,
+    m.name,
+    m.display_name,
+    m.preferred_username,
+    m.given_name && m.family_name ? `${m.given_name} ${m.family_name}` : null,
+    m.given_name,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  const email = user.email;
+  if (email?.includes('@')) {
+    const local = email.split('@')[0]?.trim();
+    if (local) return local;
+  }
+  return email ?? '';
+}
+
 export default function Dashboard() {
+  const { user } = useAuth();
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
   const [compareWithJanuary, setCompareWithJanuary] = useState(false);
   const {
@@ -27,6 +54,7 @@ export default function Dashboard() {
     totalSpentCents,
     remainingCents,
     setSalary,
+    setCurrency,
     addExpense,
     updateExpense,
     deleteExpense,
@@ -43,7 +71,10 @@ export default function Dashboard() {
     getCurrentMonthIncome,
     getPreviousMonthIncome,
     getIncomeDifference,
-  } = useFinanceData();
+    isLoading,
+  } = useSupabaseFinanceData();
+
+  const displayName = useMemo(() => displayNameFromUser(user), [user]);
 
   const januaryMonthKey = useMemo(() => {
     const year = currentMonth.slice(0, 4);
@@ -104,6 +135,11 @@ export default function Dashboard() {
   const previousIncome = getPreviousMonthIncome();
   const incomeDiff = getIncomeDifference();
 
+  const onLogout = async () => {
+    if (!hasSupabaseEnv) return;
+    await supabase.auth.signOut();
+  };
+
   return (
     <>
       <Helmet>
@@ -125,17 +161,29 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-foreground">Budget Tracker</h1>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-[11px] text-muted-foreground tracking-wide uppercase">
                       Monthly finances
                     </p>
-                    <span className="inline-flex items-center rounded-full border border-border bg-secondary/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground tracking-wide">
-                      {activeCurrency}
-                    </span>
+                    {hasSupabaseEnv ? (
+                      <CurrencySelector
+                        variant="header"
+                        value={activeCurrency}
+                        onChange={setCurrency}
+                      />
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-border bg-secondary/60 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground tracking-wide">
+                        {activeCurrency}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <div className="hidden lg:block text-right">
+                  <p className="text-xs text-muted-foreground">Signed in as</p>
+                  <p className="text-xs font-medium">{displayName}</p>
+                </div>
                 <ThemeToggle />
                 <MonthSelector currentMonth={currentMonth} onMonthChange={setCurrentMonth} />
                 <Link
@@ -144,6 +192,13 @@ export default function Dashboard() {
                 >
                   Open report
                 </Link>
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-semibold bg-secondary text-secondary-foreground border border-border hover:bg-secondary/80 transition-colors"
+                >
+                  Logout
+                </button>
               </div>
             </div>
           </div>
@@ -151,12 +206,26 @@ export default function Dashboard() {
 
         {/* Main content */}
         <main className="container max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          {isLoading ? (
+            <div className="card-elevated p-6">
+              <p className="text-sm text-muted-foreground">Loading your budget data...</p>
+            </div>
+          ) : null}
+          {!hasSupabaseEnv ? (
+            <div className="card-elevated p-6">
+              <p className="text-sm text-destructive">{supabaseEnvError}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Create a `.env` file from `.env.example` and restart `npm run dev`.
+              </p>
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-6 lg:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
             {/* Left column */}
             <div className="space-y-5 sm:space-y-6">
               <SalarySetup
                 currentSalaryCents={budget?.salaryCents || null}
                 incomeNote={budget?.incomeNote ?? null}
+                currency={activeCurrency}
                 onSave={setSalary}
               />
               {budget && (
@@ -165,6 +234,7 @@ export default function Dashboard() {
                     salaryCents={budget.salaryCents}
                     totalSpentCents={totalSpentCents}
                     remainingCents={remainingCents}
+                    currency={activeCurrency}
                   />
                   <div className="mt-3 card-elevated p-4 space-y-3">
                     <div className="flex items-center justify-between gap-3">
@@ -276,6 +346,7 @@ export default function Dashboard() {
               <SavingsGoals
                 goals={savingsGoals}
                 remainingCents={remainingCents}
+                currency={activeCurrency}
                 onAddGoal={addSavingsGoal}
                 onAddContribution={addContributionToGoal}
                 onUpdateGoal={updateSavingsGoal}
@@ -284,6 +355,7 @@ export default function Dashboard() {
               <CategoryChart
                 expenses={expenses}
                 categories={allCategories}
+                currency={activeCurrency}
                 selectedCategory={categoryFilter === 'all' ? null : categoryFilter}
                 onCategorySelect={(cat) => setCategoryFilter(cat ?? 'all')}
                 categoryLimits={categoryLimitsForMonth}
@@ -293,10 +365,17 @@ export default function Dashboard() {
 
             {/* Right column */}
             <div className="space-y-5 sm:space-y-6">
-              <ExpenseForm onAdd={addExpense} categories={allCategories} onAddCategory={addCustomCategory} onDeleteCategory={deleteCategory} />
+              <ExpenseForm
+                currency={activeCurrency}
+                onAdd={addExpense}
+                categories={allCategories}
+                onAddCategory={addCustomCategory}
+                onDeleteCategory={deleteCategory}
+              />
               <ExpenseList
                 expenses={expenses}
                 categories={allCategories}
+                currency={activeCurrency}
                 categoryFilter={categoryFilter}
                 onCategoryFilterChange={setCategoryFilter}
                 onUpdate={updateExpense}
@@ -310,7 +389,7 @@ export default function Dashboard() {
         <footer className="border-t border-border mt-10 sm:mt-14">
           <div className="container max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <p className="text-center text-sm text-muted-foreground">
-              Your data is stored locally in your browser · Built with ❤️
+              Your data is private and protected by authentication and RLS · Built with ❤️
             </p>
           </div>
         </footer>

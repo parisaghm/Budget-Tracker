@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Expense, Category, CategoryDef } from '@/types/finance';
-import { formatMoney, eurosToCents, centsToEuros } from '@/utils/money';
+import { formatMoney, eurosToCents, centsToEuros, getCurrencySymbol } from '@/utils/money';
 import { BarChart3, Target, Plus } from 'lucide-react';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 interface CategoryChartProps {
   expenses: Expense[];
   categories: CategoryDef[];
+  currency?: string;
   /** When user clicks a legend item, filter the expense list by this category. Null = show all. */
   selectedCategory: Category | null;
   onCategorySelect: (category: Category | null) => void;
@@ -41,6 +42,7 @@ function getCategoryColor(index: number): string {
 export function CategoryChart({
   expenses,
   categories,
+  currency = 'EUR',
   selectedCategory,
   onCategorySelect,
   categoryLimits = {},
@@ -121,7 +123,7 @@ export function CategoryChart({
                   return (
                     <div className="bg-card border border-border rounded-xl shadow-lg px-4 py-3" style={{ boxShadow: 'var(--shadow-lg)' }}>
                       <p className="font-semibold text-foreground">{data.name}</p>
-                      <p className="text-sm text-muted-foreground font-mono">{formatMoney(data.value)}</p>
+                      <p className="text-sm text-muted-foreground font-mono">{formatMoney(data.value, currency)}</p>
                       <p className="text-xs text-muted-foreground">{pct}% of total</p>
                     </div>
                   );
@@ -151,7 +153,7 @@ export function CategoryChart({
       </div>
       {largestSlice && (
         <p className="mt-3 text-sm text-muted-foreground text-center">
-          Biggest spending: <span className="font-semibold text-foreground">{largestSlice.name}</span> ({formatMoney(largestSlice.value)})
+          Biggest spending: <span className="font-semibold text-foreground">{largestSlice.name}</span> ({formatMoney(largestSlice.value, currency)})
         </p>
       )}
 
@@ -160,6 +162,7 @@ export function CategoryChart({
         categories={categories}
         spentByCategory={spentByCategory}
         categoryLimits={categoryLimits}
+        currency={currency}
         onSetCategoryLimit={onSetCategoryLimit}
         selectedCategory={selectedCategory}
         onCategorySelect={onCategorySelect}
@@ -173,6 +176,7 @@ interface CategoryBudgetListProps {
   categories: CategoryDef[];
   spentByCategory: Record<string, number>;
   categoryLimits: Record<string, number>;
+  currency?: string;
   onSetCategoryLimit?: (categoryValue: string, limitCents: number) => void;
   selectedCategory: Category | null;
   onCategorySelect: (category: Category | null) => void;
@@ -183,6 +187,7 @@ function CategoryBudgetList({
   categories,
   spentByCategory,
   categoryLimits,
+  currency = 'EUR',
   onSetCategoryLimit,
   selectedCategory,
   onCategorySelect,
@@ -233,19 +238,20 @@ function CategoryBudgetList({
                 {hasLimit ? (
                   <div className="flex items-center gap-2 shrink-0 text-xs">
                     <span className="text-muted-foreground">
-                      Limit {formatMoney(limitCents)}
+                      Limit {formatMoney(limitCents, currency)}
                     </span>
                     <span className="font-mono font-medium text-foreground">
-                      Spent {formatMoney(spent)}
+                      Spent {formatMoney(spent, currency)}
                     </span>
                     {remaining !== null && (
                       <span className={cn('font-mono font-semibold', isOver ? 'text-destructive' : 'text-muted-foreground')}>
-                        {isOver ? `Over by ${formatMoney(overBy)}` : `Remaining ${formatMoney(remaining)}`}
+                        {isOver ? `Over by ${formatMoney(overBy, currency)}` : `Remaining ${formatMoney(remaining, currency)}`}
                       </span>
                     )}
                     {onSetCategoryLimit && (
                       <SetLimitPopover
                         categoryLabel={cat.label}
+                        currency={currency}
                         currentLimitCents={limitCents}
                         onSave={(cents) => onSetCategoryLimit(cat.value, cents)}
                       />
@@ -254,11 +260,12 @@ function CategoryBudgetList({
                 ) : (
                   <div className="flex items-center gap-2 shrink-0 text-xs">
                     <span className="font-mono text-muted-foreground">
-                      Spent {formatMoney(spent)}
+                      Spent {formatMoney(spent, currency)}
                     </span>
                     {onSetCategoryLimit && (
                       <SetLimitPopover
                         categoryLabel={cat.label}
+                        currency={currency}
                         currentLimitCents={0}
                         onSave={(cents) => onSetCategoryLimit(cat.value, cents)}
                       />
@@ -292,10 +299,12 @@ function CategoryBudgetList({
 
 function SetLimitPopover({
   categoryLabel,
+  currency = 'EUR',
   currentLimitCents,
   onSave,
 }: {
   categoryLabel: string;
+  currency?: string;
   currentLimitCents: number;
   onSave: (limitCents: number) => void;
 }) {
@@ -342,7 +351,7 @@ function SetLimitPopover({
               onChange={(e) => setInputValue(e.target.value)}
               className="font-mono"
             />
-            <span className="self-center text-sm text-muted-foreground">€</span>
+            <span className="self-center text-sm text-muted-foreground">{getCurrencySymbol(currency)}</span>
           </div>
           <div className="flex gap-2">
             <Button type="submit" size="sm" className="flex-1">

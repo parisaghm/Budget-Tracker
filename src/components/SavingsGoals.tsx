@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Target, Plus, Trash2, Pencil, Calendar, Clock, Wallet } from 'lucide-react';
 import { SavingsGoal as SavingsGoalType } from '@/types/finance';
-import { formatMoney, eurosToCents, centsToEuros } from '@/utils/money';
+import { formatMoney, eurosToCents, centsToEuros, getCurrencySymbol } from '@/utils/money';
 import { calculateGoalPlan } from '@/utils/goalPlan';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 interface SavingsGoalsProps {
   goals: SavingsGoalType[];
   remainingCents: number;
+  currency?: string;
   onAddGoal: (goal: { name: string; targetCents: number; savedCents: number; startDate: string; targetDate: string }) => void;
   onAddContribution: (goalId: string, amountCents: number) => void;
   onUpdateGoal: (goalId: string, updates: { name?: string; targetCents?: number; targetDate?: string }) => void;
@@ -29,6 +30,7 @@ interface SavingsGoalsProps {
 export function SavingsGoals({
   goals,
   remainingCents,
+  currency = 'EUR',
   onAddGoal,
   onAddContribution,
   onUpdateGoal,
@@ -153,7 +155,7 @@ export function SavingsGoals({
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-foreground">{goal.name}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Target: {formatMoney(goal.targetCents)} · Saved: {formatMoney(goal.savedCents)} · Remaining: {formatMoney(remaining)}
+                      Target: {formatMoney(goal.targetCents, currency)} · Saved: {formatMoney(goal.savedCents, currency)} · Remaining: {formatMoney(remaining, currency)}
                     </p>
                     <div className="mt-2 space-y-1">
                       <p className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -167,7 +169,7 @@ export function SavingsGoals({
                       {plan.monthsRemaining > 0 && (
                         <p className="text-xs font-medium text-primary flex items-center gap-1.5">
                           <Wallet className="w-3.5 h-3.5 shrink-0" />
-                          Recommended saving: {formatMoney(plan.monthlyRequiredSavingCents)} / month
+                          Recommended saving: {formatMoney(plan.monthlyRequiredSavingCents, currency)} / month
                         </p>
                       )}
                     </div>
@@ -207,7 +209,7 @@ export function SavingsGoals({
                   disabled={remaining <= 0}
                 >
                   <Plus className="w-4 h-4" />
-                  Add {formatMoney(suggestedContribution)} this month
+                  Add {formatMoney(suggestedContribution, currency)} this month
                 </Button>
               </div>
             );
@@ -286,7 +288,7 @@ export function SavingsGoals({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-goal-target">Target amount (€)</Label>
+              <Label htmlFor="edit-goal-target">Target amount ({getCurrencySymbol(currency)})</Label>
               <Input
                 id="edit-goal-target"
                 type="number"
@@ -332,7 +334,7 @@ export function SavingsGoals({
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="contribute-amount">Amount (€)</Label>
+              <Label htmlFor="contribute-amount">Amount ({getCurrencySymbol(currency)})</Label>
               <Input
                 id="contribute-amount"
                 type="number"
@@ -343,7 +345,7 @@ export function SavingsGoals({
               />
               {remainingCents >= 0 && (
                 <p className="text-xs text-muted-foreground">
-                  Remaining this month: {formatMoney(remainingCents)}
+                  Remaining this month: {formatMoney(remainingCents, currency)}
                 </p>
               )}
             </div>

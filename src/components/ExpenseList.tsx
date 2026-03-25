@@ -6,6 +6,7 @@ import { formatMoney, formatDate, eurosToCents, centsToEuros } from '@/utils/mon
 interface ExpenseListProps {
   expenses: Expense[];
   categories: CategoryDef[];
+  currency?: string;
   /** When provided (e.g. from chart legend click), filters the list and syncs the dropdown */
   categoryFilter?: Category | 'all';
   onCategoryFilterChange?: (category: Category | 'all') => void;
@@ -20,7 +21,15 @@ const CATEGORY_CLASSES: Record<string, string> = {
   other: 'category-other',
 };
 
-export function ExpenseList({ expenses, categories, categoryFilter: controlledFilter, onCategoryFilterChange, onUpdate, onDelete }: ExpenseListProps) {
+export function ExpenseList({
+  expenses,
+  categories,
+  currency = 'EUR',
+  categoryFilter: controlledFilter,
+  onCategoryFilterChange,
+  onUpdate,
+  onDelete,
+}: ExpenseListProps) {
   const [internalFilter, setInternalFilter] = useState<Category | 'all'>('all');
   const filterCategory = controlledFilter ?? internalFilter;
   const setFilterCategory = onCategoryFilterChange ?? setInternalFilter;
@@ -106,7 +115,9 @@ export function ExpenseList({ expenses, categories, categoryFilter: controlledFi
                   )}
                 </div>
                 <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-2 w-full sm:w-auto mt-1 sm:mt-0">
-                  <span className="font-bold money-display text-base sm:text-lg">{formatMoney(expense.amountCents)}</span>
+                  <span className="font-bold money-display text-base sm:text-lg">
+                    {formatMoney(expense.amountCents, currency)}
+                  </span>
                   <button onClick={() => startEdit(expense)} className="btn-icon opacity-0 group-hover:opacity-100 transition-opacity"><Pencil className="w-4 h-4" /></button>
                   <button onClick={() => onDelete(expense.id)} className="btn-icon text-destructive/60 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></button>
                 </div>

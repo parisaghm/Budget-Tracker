@@ -6,9 +6,15 @@ interface BudgetSummaryProps {
   salaryCents: number;
   totalSpentCents: number;
   remainingCents: number;
+  currency?: string;
 }
 
-export function BudgetSummary({ salaryCents, totalSpentCents, remainingCents }: BudgetSummaryProps) {
+export function BudgetSummary({
+  salaryCents,
+  totalSpentCents,
+  remainingCents,
+  currency = 'EUR',
+}: BudgetSummaryProps) {
   const spentPercentage = calculateSpentPercentage(totalSpentCents, salaryCents);
   const isOverBudget = remainingCents < 0;
   const isWarning = spentPercentage > 75 && !isOverBudget;
@@ -66,7 +72,7 @@ export function BudgetSummary({ salaryCents, totalSpentCents, remainingCents }: 
           </div>
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Income</p>
-            <p className="font-bold money-display text-sm">{formatMoney(salaryCents)}</p>
+            <p className="font-bold money-display text-sm">{formatMoney(salaryCents, currency)}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-xl bg-muted/60">
@@ -81,7 +87,7 @@ export function BudgetSummary({ salaryCents, totalSpentCents, remainingCents }: 
           </div>
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Spent</p>
-            <p className="font-bold money-display text-sm">{formatMoney(totalSpentCents)}</p>
+            <p className="font-bold money-display text-sm">{formatMoney(totalSpentCents, currency)}</p>
           </div>
         </div>
       </div>

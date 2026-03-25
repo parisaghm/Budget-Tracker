@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { useFinanceData } from '@/hooks/useFinanceData';
+import { useSupabaseFinanceData } from '@/hooks/useSupabaseFinanceData';
 import { formatMoney, formatMonth, formatDate } from '@/utils/money';
 import { getCategoryLabel } from '@/types/finance';
 import html2canvas from 'html2canvas';
@@ -18,7 +18,7 @@ export default function Report() {
     getMonthData,
     allCategories,
     savingsGoals,
-  } = useFinanceData();
+  } = useSupabaseFinanceData();
 
   useEffect(() => {
     if (monthKey && monthKey !== currentMonth) {

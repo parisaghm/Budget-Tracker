@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { Wallet, Check, Pencil } from 'lucide-react';
-import { eurosToCents, centsToEuros } from '@/utils/money';
+import { eurosToCents, centsToEuros, formatMoney, getCurrencySymbol } from '@/utils/money';
 
 interface SalarySetupProps {
   currentSalaryCents: number | null;
   incomeNote?: string | null;
+  /** ISO 4217 code for display and salary input prefix */
+  currency?: string;
   onSave: (salaryCents: number, incomeNote?: string) => void;
 }
 
-export function SalarySetup({ currentSalaryCents, incomeNote, onSave }: SalarySetupProps) {
+export function SalarySetup({ currentSalaryCents, incomeNote, currency = 'EUR', onSave }: SalarySetupProps) {
   const [amount, setAmount] = useState(
     currentSalaryCents ? centsToEuros(currentSalaryCents).toString() : ''
   );
@@ -40,7 +42,7 @@ export function SalarySetup({ currentSalaryCents, incomeNote, onSave }: SalarySe
         <div className="text-left flex-1">
           <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Monthly Salary</p>
           <p className="text-2xl font-bold money-display mt-0.5">
-            €{centsToEuros(currentSalaryCents).toLocaleString('en-EU', { minimumFractionDigits: 2 })}
+            {formatMoney(currentSalaryCents, currency)}
           </p>
           {incomeNote && (
             <p className="text-xs text-muted-foreground mt-1">
@@ -63,7 +65,9 @@ export function SalarySetup({ currentSalaryCents, incomeNote, onSave }: SalarySe
           Monthly Salary (Net)
         </label>
         <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-lg">€</span>
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-lg min-w-[1.25rem]">
+            {getCurrencySymbol(currency)}
+          </span>
           <input
             type="number"
             value={amount}

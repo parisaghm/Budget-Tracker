@@ -1,19 +1,26 @@
 import { useState } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
 import { Category, CategoryDef } from '@/types/finance';
-import { eurosToCents, getTodayDate } from '@/utils/money';
+import { eurosToCents, getTodayDate, getCurrencySymbol } from '@/utils/money';
 import { getCategoryIcon, ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
 
 type DeleteCategoryResult = { success: true } | { success: false; error: string };
 
 interface ExpenseFormProps {
+  currency?: string;
   onAdd: (expense: { amountCents: number; category: Category; date: string; note: string }) => void;
   categories: CategoryDef[];
   onAddCategory: (label: string, iconKey?: string) => void;
   onDeleteCategory?: (categoryValue: string) => DeleteCategoryResult;
 }
 
-export function ExpenseForm({ onAdd, categories, onAddCategory, onDeleteCategory }: ExpenseFormProps) {
+export function ExpenseForm({
+  currency = 'EUR',
+  onAdd,
+  categories,
+  onAddCategory,
+  onDeleteCategory,
+}: ExpenseFormProps) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>(categories[0]?.value || 'groceries');
   const [date, setDate] = useState(getTodayDate());
@@ -87,7 +94,9 @@ export function ExpenseForm({ onAdd, categories, onAddCategory, onDeleteCategory
         <div>
           <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">Amount</label>
           <div className="relative">
-            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-2xl">€</span>
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-2xl min-w-[1.5rem]">
+              {getCurrencySymbol(currency)}
+            </span>
             <input
               type="number"
               step="0.01"
