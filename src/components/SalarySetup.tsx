@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Wallet, Check, Pencil } from 'lucide-react';
 import { eurosToCents, centsToEuros, formatMoney, getCurrencySymbol } from '@/utils/money';
+
+export type SalarySetupHandle = {
+  openEdit: () => void;
+};
 
 interface SalarySetupProps {
   currentSalaryCents: number | null;
@@ -10,7 +15,10 @@ interface SalarySetupProps {
   onSave: (salaryCents: number, incomeNote?: string) => void;
 }
 
-export function SalarySetup({ currentSalaryCents, incomeNote, currency = 'EUR', onSave }: SalarySetupProps) {
+export const SalarySetup = forwardRef<SalarySetupHandle, SalarySetupProps>(function SalarySetup(
+  { currentSalaryCents, incomeNote, currency = 'EUR', onSave },
+  ref,
+) {
   const [amount, setAmount] = useState(
     currentSalaryCents ? centsToEuros(currentSalaryCents).toString() : ''
   );
@@ -29,9 +37,24 @@ export function SalarySetup({ currentSalaryCents, incomeNote, currency = 'EUR', 
     if (e.key === 'Enter') handleSave();
   };
 
+  useImperativeHandle(ref, () => ({
+    openEdit: () => {
+      flushSync(() => {
+        setIsEditing(true);
+        if (currentSalaryCents != null) {
+          setAmount(centsToEuros(currentSalaryCents).toString());
+        }
+        setNote(incomeNote || '');
+      });
+      document.getElementById('salary-setup-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    },
+  }), [currentSalaryCents, incomeNote]);
+
   if (!isEditing && currentSalaryCents) {
     return (
       <button
+        id="salary-setup-section"
+        type="button"
         onClick={() => setIsEditing(true)}
         className="group w-full flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200"
         style={{ boxShadow: 'var(--shadow-sm)' }}
@@ -56,7 +79,7 @@ export function SalarySetup({ currentSalaryCents, incomeNote, currency = 'EUR', 
   }
 
   return (
-    <div className="flex items-center gap-4 p-5 rounded-2xl bg-card border border-border animate-scale-in" style={{ boxShadow: 'var(--shadow-md)' }}>
+    <div id="salary-setup-section" className="flex items-center gap-4 p-5 rounded-2xl bg-card border border-border animate-scale-in" style={{ boxShadow: 'var(--shadow-md)' }}>
       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--gradient-accent)' }}>
         <Wallet className="w-5 h-5 text-accent-foreground" />
       </div>
@@ -94,4 +117,4 @@ export function SalarySetup({ currentSalaryCents, incomeNote, currency = 'EUR', 
       </button>
     </div>
   );
-}
+});

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { useSupabaseFinanceData } from '@/hooks/useSupabaseFinanceData';
 import { useAuth } from '@/context/AuthContext';
 import { hasSupabaseEnv, supabase, supabaseEnvError } from '@/lib/supabase/client';
 import { MonthSelector } from '@/components/MonthSelector';
-import { SalarySetup } from '@/components/SalarySetup';
+import { SalarySetup, type SalarySetupHandle } from '@/components/SalarySetup';
 import { BudgetSummary } from '@/components/BudgetSummary';
 import { SavingsGoals } from '@/components/SavingsGoals';
 import { ExpenseForm } from '@/components/ExpenseForm';
@@ -45,6 +45,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
   const [compareWithJanuary, setCompareWithJanuary] = useState(false);
+  const salarySetupRef = useRef<SalarySetupHandle>(null);
   const {
     currentMonth,
     setCurrentMonth,
@@ -223,6 +224,7 @@ export default function Dashboard() {
             {/* Left column */}
             <div className="space-y-5 sm:space-y-6">
               <SalarySetup
+                ref={salarySetupRef}
                 currentSalaryCents={budget?.salaryCents || null}
                 incomeNote={budget?.incomeNote ?? null}
                 currency={activeCurrency}
@@ -235,6 +237,7 @@ export default function Dashboard() {
                     totalSpentCents={totalSpentCents}
                     remainingCents={remainingCents}
                     currency={activeCurrency}
+                    onEditSalary={() => salarySetupRef.current?.openEdit()}
                   />
                   <div className="mt-3 card-elevated p-4 space-y-3">
                     <div className="flex items-center justify-between gap-3">
@@ -376,6 +379,7 @@ export default function Dashboard() {
                 expenses={expenses}
                 categories={allCategories}
                 currency={activeCurrency}
+                monthScope={currentMonth}
                 categoryFilter={categoryFilter}
                 onCategoryFilterChange={setCategoryFilter}
                 onUpdate={updateExpense}

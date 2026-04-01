@@ -12,6 +12,8 @@ import {
   HeartPulse,
   Dumbbell,
   CreditCard,
+  Utensils,
+  SprayCan,
 } from 'lucide-react';
 
 export const ICON_MAP = {
@@ -21,10 +23,12 @@ export const ICON_MAP = {
   'credit-card': CreditCard,
   'shopping-cart': ShoppingCart,
   'shopping-basket': ShoppingBasket,
+  food: Utensils,
   car: Car,
   film: Film,
   'heart-pulse': HeartPulse,
   tag: Tag,
+  'spray-can': SprayCan,
   // Extra keys for existing defaults
   'party-popper': PartyPopper,
   'more-horizontal': MoreHorizontal,
@@ -52,8 +56,21 @@ export function inferIconKeyFromLabel(label: string): IconKey {
     return 'home';
   }
 
-  if (lower.includes('food') || lower.includes('grocery') || lower.includes('groceries')) {
+  if (lower.includes('grocery') || lower.includes('groceries')) {
     return 'shopping-basket';
+  }
+
+  if (
+    lower.includes('food') ||
+    lower.includes('restaurant') ||
+    lower.includes('dining') ||
+    lower.includes('meal') ||
+    lower.includes('cafe') ||
+    lower.includes('lunch') ||
+    lower.includes('breakfast') ||
+    lower.includes('dinner')
+  ) {
+    return 'food';
   }
 
   if (lower.includes('transport') || lower.includes('car') || lower.includes('fuel')) {
@@ -74,6 +91,17 @@ export function inferIconKeyFromLabel(label: string): IconKey {
 
   if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout') || lower.includes('sport')) {
     return 'dumbbell';
+  }
+
+  if (
+    lower.includes('cosmetic') ||
+    lower.includes('makeup') ||
+    lower.includes('beauty') ||
+    lower.includes('skincare') ||
+    lower.includes('perfume') ||
+    lower.includes('lotion')
+  ) {
+    return 'spray-can';
   }
 
   if (lower.includes('subscription') || lower.includes('subscribe') || lower.includes('recurring') || lower.includes('membership')) {

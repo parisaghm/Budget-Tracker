@@ -122,9 +122,15 @@ export function useSupabaseFinanceData() {
 
       const customCategories: CategoryDef[] = [];
       const categoryLimits: CategoryLimitsByMonth = {};
+      const defaultCategoryValues = new Set(DEFAULT_CATEGORIES.map((c) => c.value));
 
       ((categoriesRes.data as CategoryRow[] | null) ?? []).forEach((row) => {
-        if (row.is_custom) {
+        const isStandaloneCustomRow =
+          row.month == null &&
+          row.limit_cents == null &&
+          !defaultCategoryValues.has(row.value);
+
+        if (row.is_custom || isStandaloneCustomRow) {
           customCategories.push({
             id: row.id,
             value: row.value,
@@ -246,18 +252,68 @@ export function useSupabaseFinanceData() {
   );
 
   const addExpense = useCallback(
-    (expense: Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">) => {
+    async (expense: Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">) => {
       if (!user) {
         throw new Error("Not authenticated");
       }
       const budget = data.budgets[currentMonth];
       const budgetId = budget?.id ?? crypto.randomUUID();
+      const newExpenseId = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+
+      const { error: budgetError } = await supabase.from("budget_months").upsert(
+        {
+          id: budgetId,
+          user_id: user.id,
+          month: currentMonth,
+          salary_cents: budget?.salaryCents ?? 0,
+          currency: budget?.currency ?? "EUR",
+          income_note: budget?.incomeNote ?? null,
+        },
+        { onConflict: "user_id,month" },
+      );
+
+      if (budgetError) {
+        throw new Error(budgetError.message);
+      }
+
+      const { data: resolvedBudget, error: resolveBudgetError } = await supabase
+        .from("budget_months")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("month", currentMonth)
+        .maybeSingle();
+
+      if (resolveBudgetError) {
+        throw new Error(resolveBudgetError.message);
+      }
+      if (!resolvedBudget?.id) {
+        throw new Error("Could not resolve budget month after save");
+      }
+
+      const resolvedBudgetId = resolvedBudget.id;
+
+      const { error: expenseError } = await supabase.from("expenses").insert({
+        id: newExpenseId,
+        user_id: user.id,
+        budget_month_id: resolvedBudgetId,
+        month: currentMonth,
+        amount_cents: expense.amountCents,
+        category: expense.category,
+        date: expense.date,
+        note: expense.note?.trim() ? expense.note : null,
+      });
+
+      if (expenseError) {
+        throw new Error(expenseError.message);
+      }
+
       const newExpense: Expense = {
         ...expense,
-        id: crypto.randomUUID(),
-        budgetMonthId: budgetId,
+        id: newExpenseId,
+        budgetMonthId: resolvedBudgetId,
         month: currentMonth,
-        createdAt: new Date().toISOString(),
+        createdAt,
       };
 
       setData((prev) => ({
@@ -267,82 +323,118 @@ export function useSupabaseFinanceData() {
           : {
               ...prev.budgets,
               [currentMonth]: {
-                id: budgetId,
+                id: resolvedBudgetId,
                 month: currentMonth,
-                salaryCents: 0,
-                currency: "EUR",
-                createdAt: new Date().toISOString(),
+                salaryCents: budget?.salaryCents ?? 0,
+                currency: budget?.currency ?? "EUR",
+                createdAt,
+                incomeNote: budget?.incomeNote,
               },
             },
         expenses: [...prev.expenses, newExpense],
       }));
 
-      void supabase.from("budget_months").upsert({
-        id: budgetId,
-        user_id: user.id,
-        month: currentMonth,
-        salary_cents: budget?.salaryCents ?? 0,
-        currency: budget?.currency ?? "EUR",
-        income_note: budget?.incomeNote ?? null,
-      });
-
-      void supabase.from("expenses").insert({
-        id: newExpense.id,
-        user_id: user.id,
-        budget_month_id: newExpense.budgetMonthId,
-        month: newExpense.month,
-        amount_cents: newExpense.amountCents,
-        category: newExpense.category,
-        date: newExpense.date,
-        note: newExpense.note,
-      });
       return newExpense;
     },
     [currentMonth, data.budgets, user],
   );
 
   const updateExpense = useCallback(
-    (id: string, updates: Partial<Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">>) => {
+    async (id: string, updates: Partial<Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">>) => {
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      const patch: Record<string, unknown> = {};
+      if (updates.amountCents !== undefined) patch.amount_cents = updates.amountCents;
+      if (updates.category !== undefined) patch.category = updates.category;
+      if (updates.date !== undefined) {
+        patch.date = updates.date;
+        patch.month = updates.date.slice(0, 7);
+      }
+      if (updates.note !== undefined) patch.note = updates.note?.trim() ? updates.note : null;
+
+      if (Object.keys(patch).length === 0) {
+        return;
+      }
+
+      const { data: row, error } = await supabase
+        .from("expenses")
+        .update(patch)
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .select("id, budget_month_id, month, amount_cents, category, date, note, created_at")
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message);
+      }
+      if (!row) {
+        throw new Error("Expense not found or access denied");
+      }
+
       setData((prev) => ({
         ...prev,
-        expenses: prev.expenses.map((exp) => (exp.id === id ? { ...exp, ...updates } : exp)),
+        expenses: prev.expenses.map((exp) => {
+          if (exp.id !== id) return exp;
+          return {
+            ...exp,
+            amountCents: row.amount_cents,
+            category: row.category,
+            date: row.date,
+            month: row.month,
+            note: row.note ?? "",
+            budgetMonthId: row.budget_month_id,
+            createdAt: row.created_at,
+          };
+        }),
       }));
-
-      void supabase
-        .from("expenses")
-        .update({
-          amount_cents: updates.amountCents,
-          category: updates.category,
-          date: updates.date,
-          note: updates.note,
-        })
-        .eq("id", id);
     },
-    [],
+    [user],
   );
 
-  const deleteExpense = useCallback((id: string) => {
+  const deleteExpense = useCallback(async (id: string) => {
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const { data: rows, error } = await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id)
+      .select("id");
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (!rows?.length) {
+      throw new Error("Expense not found or access denied");
+    }
+
     setData((prev) => ({
       ...prev,
       expenses: prev.expenses.filter((exp) => exp.id !== id),
     }));
-    void supabase.from("expenses").delete().eq("id", id);
-  }, []);
+  }, [user]);
 
   const addCustomCategory = useCallback(
-    (label: string, iconKeyInput?: string) => {
-      if (!user) return;
+    async (
+      label: string,
+      iconKeyInput?: string,
+    ): Promise<{ success: true } | { success: false; error: string }> => {
+      if (!user) return { success: false, error: "Not signed in" };
       const trimmedLabel = label.trim();
       const value = trimmedLabel
         .toLowerCase()
         .replace(/\s+/g, "_")
         .replace(/[^a-z0-9_]/g, "");
-      if (!value) return;
+      if (!value) return { success: false, error: "Invalid category name" };
 
       const exists = [...DEFAULT_CATEGORIES, ...data.customCategories].some(
         (c) => c.value === value || c.label.trim().toLowerCase() === trimmedLabel.toLowerCase(),
       );
-      if (exists) return;
+      if (exists) return { success: false, error: "A category with this name already exists" };
 
       const newCategory: CategoryDef = {
         id: crypto.randomUUID(),
@@ -352,12 +444,7 @@ export function useSupabaseFinanceData() {
         isCustom: true,
       };
 
-      setData((prev) => ({
-        ...prev,
-        customCategories: [...prev.customCategories, newCategory],
-      }));
-
-      void supabase.from("categories").insert({
+      const { error } = await supabase.from("categories").insert({
         id: newCategory.id,
         user_id: user.id,
         value: newCategory.value,
@@ -365,17 +452,36 @@ export function useSupabaseFinanceData() {
         icon_key: newCategory.iconKey,
         is_custom: true,
       });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      setData((prev) => ({
+        ...prev,
+        customCategories: [...prev.customCategories, newCategory],
+      }));
+      return { success: true };
     },
     [data.customCategories, user],
   );
 
-  const removeCustomCategory = useCallback((value: string) => {
-    setData((prev) => ({
-      ...prev,
-      customCategories: prev.customCategories.filter((c) => c.value !== value),
-    }));
-    void supabase.from("categories").delete().eq("value", value).eq("is_custom", true);
-  }, []);
+  const removeCustomCategory = useCallback(
+    (value: string) => {
+      if (!user) return;
+      setData((prev) => ({
+        ...prev,
+        customCategories: prev.customCategories.filter((c) => c.value !== value),
+      }));
+      void supabase
+        .from("categories")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("value", value)
+        .is("month", null);
+    },
+    [user],
+  );
 
   const deleteCategory = useCallback(
     (categoryValue: string): { success: true } | { success: false; error: string } => {

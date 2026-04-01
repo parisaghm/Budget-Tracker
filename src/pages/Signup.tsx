@@ -68,7 +68,27 @@ export default function Signup() {
       return;
     }
 
-    setSuccess("Check your email to confirm your account, then log in.");
+    // If signup doesn't return a session, try immediate sign-in once.
+    // This supports projects that may still allow password login after signup.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (!signInError) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+
+    const message = signInError.message.toLowerCase();
+    if (message.includes("email not confirmed") || message.includes("not confirmed")) {
+      setError(
+        "Email confirmation is enabled in Supabase. Disable it in Authentication > Providers > Email (turn off Confirm email) to allow instant signup login.",
+      );
+      return;
+    }
+
+    setSuccess("Account created. Please log in.");
   };
 
   return (

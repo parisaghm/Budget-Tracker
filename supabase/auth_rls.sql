@@ -1,3 +1,6 @@
+-- Superseded by supabase/migrations/20260330120000_budget_tracker_rls.sql (split RLS policies, FKs, stricter checks).
+-- Kept for reference; prefer applying the migration file for new environments.
+--
 -- 1) Schema updates for user-owned data
 alter table if exists public.budget_months add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table if exists public.expenses add column if not exists user_id uuid references auth.users(id) on delete cascade;

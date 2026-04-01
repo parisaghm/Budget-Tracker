@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Receipt, X, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Category, CategoryDef } from '@/types/finance';
 import { eurosToCents, getTodayDate, getCurrencySymbol } from '@/utils/money';
 import { getCategoryIcon, ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
@@ -8,9 +9,12 @@ type DeleteCategoryResult = { success: true } | { success: false; error: string 
 
 interface ExpenseFormProps {
   currency?: string;
-  onAdd: (expense: { amountCents: number; category: Category; date: string; note: string }) => void;
+  onAdd: (expense: { amountCents: number; category: Category; date: string; note: string }) => void | Promise<void>;
   categories: CategoryDef[];
-  onAddCategory: (label: string, iconKey?: string) => void;
+  onAddCategory: (
+    label: string,
+    iconKey?: string,
+  ) => void | Promise<{ success: true } | { success: false; error: string }>;
   onDeleteCategory?: (categoryValue: string) => DeleteCategoryResult;
 }
 
@@ -30,19 +34,30 @@ export function ExpenseForm({
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [selectedIconKey, setSelectedIconKey] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = parseFloat(amount);
     if (!isNaN(value) && value > 0) {
-      onAdd({ amountCents: eurosToCents(value), category, date, note: note.trim() });
-      setAmount('');
-      setNote('');
-      setDate(getTodayDate());
+      setIsSaving(true);
+      try {
+        await Promise.resolve(
+          onAdd({ amountCents: eurosToCents(value), category, date, note: note.trim() }),
+        );
+        setAmount('');
+        setNote('');
+        setDate(getTodayDate());
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Could not save expense';
+        toast.error('Expense not saved', { description: message });
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     const label = newCategoryLabel.trim();
     if (!label) return;
 
@@ -58,7 +73,13 @@ export function ExpenseForm({
 
     setCategoryError(null);
     const fallbackIconKey = inferIconKeyFromLabel(label);
-    onAddCategory(label, (selectedIconKey && selectedIconKey in ICON_MAP ? selectedIconKey : undefined) ?? fallbackIconKey);
+    const iconArg =
+      (selectedIconKey && selectedIconKey in ICON_MAP ? selectedIconKey : undefined) ?? fallbackIconKey;
+    const result = await Promise.resolve(onAddCategory(label, iconArg));
+    if (result && typeof result === 'object' && 'success' in result && !result.success) {
+      setCategoryError(result.error);
+      return;
+    }
     const value = label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     setCategory(value);
     setNewCategoryLabel('');
@@ -237,9 +258,13 @@ export function ExpenseForm({
           </div>
         )}
 
-        <button type="submit" disabled={!amount || parseFloat(amount) <= 0} className="btn-primary w-full h-14 text-base gap-2">
+        <button
+          type="submit"
+          disabled={!amount || parseFloat(amount) <= 0 || isSaving}
+          className="btn-primary w-full h-14 text-base gap-2"
+        >
           <Plus className="w-5 h-5" />
-          Add Expense
+          {isSaving ? 'Saving…' : 'Add Expense'}
         </button>
       </div>
     </form>
