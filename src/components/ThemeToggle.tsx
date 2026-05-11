@@ -3,7 +3,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { theme, systemTheme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -25,6 +25,7 @@ export function ThemeToggle() {
         "bg-secondary/70 hover:bg-secondary text-muted-foreground hover:text-foreground",
         "border border-border/60 hover:border-border",
         "transition-colors duration-200",
+        className,
       )}
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >

@@ -24,15 +24,15 @@ export default function ResetPassword() {
     }
 
     if (!password || !confirmPassword) {
-      setError("Please fill in both password fields.");
+      setError("Please enter and confirm your new password.");
       return;
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError("Use at least 8 characters so your account stays protected.");
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError("Those passwords do not match yet. Try again when you are ready.");
       return;
     }
 
@@ -45,49 +45,53 @@ export default function ResetPassword() {
       return;
     }
 
-    setSuccess("Password updated. Redirecting to dashboard...");
+    setSuccess("Password updated. Taking you to your dashboard...");
     setTimeout(() => navigate("/dashboard", { replace: true }), 1000);
   };
 
   return (
     <AuthShell
-      title="Reset password"
-      subtitle="Choose a new password for your account."
+      title="Choose a new password"
+      subtitle="Use at least 8 characters."
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-4 text-left">
         <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="newPassword">
+          <label className="text-sm font-semibold" htmlFor="newPassword">
             New password
           </label>
           <Input
             id="newPassword"
             type="password"
             autoComplete="new-password"
+            placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
+            className="h-11 rounded-lg border-border bg-background px-3 text-sm shadow-sm focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium" htmlFor="confirmPassword">
+          <label className="text-sm font-semibold" htmlFor="confirmPassword">
             Confirm password
           </label>
           <Input
             id="confirmPassword"
             type="password"
             autoComplete="new-password"
+            placeholder="Re-enter password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading}
+            className="h-11 rounded-lg border-border bg-background px-3 text-sm shadow-sm focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/25 focus-visible:ring-offset-0"
           />
         </div>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {success ? <p className="text-sm text-emerald-600">{success}</p> : null}
 
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? "Updating..." : "Update password"}
+        <Button type="submit" className="h-11 w-full rounded-lg font-semibold shadow-sm" disabled={loading}>
+          {loading ? "Saving..." : "Save new password"}
         </Button>
       </form>
     </AuthShell>

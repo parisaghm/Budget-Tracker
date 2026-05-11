@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Plus, Receipt, X, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, Plus, Receipt, Star, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { Category, CategoryDef } from '@/types/finance';
-import { eurosToCents, getTodayDate, getCurrencySymbol } from '@/utils/money';
+import { Category, CategoryDef, Expense } from '@/types/finance';
+import { centsToEuros, eurosToCents, formatMoney, getCurrencySymbol, getTodayDate } from '@/utils/money';
 import { getCategoryIcon, ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
 
 type DeleteCategoryResult = { success: true } | { success: false; error: string };
@@ -11,6 +11,7 @@ interface ExpenseFormProps {
   currency?: string;
   onAdd: (expense: { amountCents: number; category: Category; date: string; note: string }) => void | Promise<void>;
   categories: CategoryDef[];
+  expenses: Expense[];
   onAddCategory: (
     label: string,
     iconKey?: string,
@@ -18,10 +19,36 @@ interface ExpenseFormProps {
   onDeleteCategory?: (categoryValue: string) => DeleteCategoryResult;
 }
 
+interface FavoriteExpense {
+  id: string;
+  title: string;
+  amountCents: number;
+  category: Category;
+  createdAt: string;
+  useCount: number;
+  lastUsedAt: string;
+}
+
+const FAVORITES_STORAGE_KEY = 'bt_expense_favorites_v1';
+const MAX_RECENT_CATEGORIES = 4;
+
+function readFavorites(): FavoriteExpense[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(FAVORITES_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function ExpenseForm({
   currency = 'EUR',
   onAdd,
   categories,
+  expenses,
   onAddCategory,
   onDeleteCategory,
 }: ExpenseFormProps) {
@@ -35,16 +62,132 @@ export function ExpenseForm({
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [selectedIconKey, setSelectedIconKey] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false);
+  const [favorites, setFavorites] = useState<FavoriteExpense[]>(readFavorites);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+  }, [favorites]);
+
+  const sortedExpenses = useMemo(
+    () => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [expenses],
+  );
+  const lastExpense = sortedExpenses[0] ?? null;
+
+  const categoryByValue = useMemo(
+    () => new Map(categories.map((cat) => [cat.value, cat])),
+    [categories],
+  );
+
+  const recentCategories = useMemo(() => {
+    if (sortedExpenses.length === 0) return categories.slice(0, MAX_RECENT_CATEGORIES);
+    const scores = new Map<Category, number>();
+    sortedExpenses.slice(0, 100).forEach((exp, idx) => {
+      const recencyScore = Math.max(1, 100 - idx);
+      scores.set(exp.category, (scores.get(exp.category) || 0) + recencyScore);
+    });
+    return [...categories]
+      .sort((a, b) => (scores.get(b.value) || 0) - (scores.get(a.value) || 0))
+      .slice(0, MAX_RECENT_CATEGORIES);
+  }, [categories, sortedExpenses]);
+
+  const topFavoriteExpenses = useMemo(
+    () =>
+      [...favorites]
+        .sort((a, b) => {
+          if (b.useCount !== a.useCount) return b.useCount - a.useCount;
+          return new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime();
+        })
+        .slice(0, 4),
+    [favorites],
+  );
+
+  const smartSuggestions = useMemo(() => {
+    const search = note.trim().toLowerCase();
+    if (!search) return { byMerchant: [] as Expense[], amountHints: [] as number[] };
+    const seen = new Set<string>();
+    const byMerchant = sortedExpenses
+      .filter((exp) => exp.note.trim().length > 0 && exp.note.toLowerCase().includes(search))
+      .slice(0, 6)
+      .map((exp) => {
+        const key = `${exp.note.toLowerCase()}-${exp.category}-${exp.amountCents}`;
+        if (seen.has(key)) return null;
+        seen.add(key);
+        return exp;
+      })
+      .filter((exp): exp is Expense => exp !== null);
+
+    const frequentAmounts = sortedExpenses
+      .slice(0, 40)
+      .reduce<Record<number, number>>((acc, exp) => {
+        acc[exp.amountCents] = (acc[exp.amountCents] || 0) + 1;
+        return acc;
+      }, {});
+
+    const amountHints = Object.entries(frequentAmounts)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => Number(b[1]) - Number(a[1]))
+      .slice(0, 3)
+      .map(([amountCents]) => Number(amountCents));
+
+    return { byMerchant, amountHints };
+  }, [note, sortedExpenses]);
+
+  const applyDraft = (draft: { amountCents?: number; category?: Category; title?: string }) => {
+    if (draft.amountCents && draft.amountCents > 0) setAmount(centsToEuros(draft.amountCents).toFixed(2));
+    if (draft.category) setCategory(draft.category);
+    if (draft.title !== undefined) setNote(draft.title);
+    setCategoryError(null);
+  };
+
+  const upsertFavorite = (draft: { title: string; amountCents: number; category: Category }) => {
+    const normalized = draft.title.trim().toLowerCase();
+    if (!normalized || draft.amountCents <= 0) return;
+    setFavorites((prev) => {
+      const existing = prev.find(
+        (fav) =>
+          fav.title.trim().toLowerCase() === normalized &&
+          fav.amountCents === draft.amountCents &&
+          fav.category === draft.category,
+      );
+      if (existing) {
+        return prev.map((fav) =>
+          fav.id === existing.id
+            ? { ...fav, useCount: fav.useCount + 1, lastUsedAt: new Date().toISOString() }
+            : fav,
+        );
+      }
+      return [
+        {
+          id: crypto.randomUUID(),
+          title: draft.title.trim(),
+          amountCents: draft.amountCents,
+          category: draft.category,
+          createdAt: new Date().toISOString(),
+          useCount: 1,
+          lastUsedAt: new Date().toISOString(),
+        },
+        ...prev,
+      ];
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = parseFloat(amount);
     if (!isNaN(value) && value > 0) {
+      const draft = { title: note.trim(), amountCents: eurosToCents(value), category };
       setIsSaving(true);
       try {
         await Promise.resolve(
-          onAdd({ amountCents: eurosToCents(value), category, date, note: note.trim() }),
+          onAdd({ amountCents: draft.amountCents, category: draft.category, date, note: draft.title }),
         );
+        if (saveAsFavorite) {
+          upsertFavorite(draft);
+          setSaveAsFavorite(false);
+        }
         setAmount('');
         setNote('');
         setDate(getTodayDate());
@@ -99,18 +242,48 @@ export function ExpenseForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="card-elevated p-6 animate-slide-up">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
-          <Receipt className="w-5 h-5 text-primary-foreground" />
+    <form
+      onSubmit={handleSubmit}
+      className="card-elevated animate-slide-up rounded-3xl p-4 sm:rounded-2xl sm:p-6"
+    >
+      <div className="mb-5 flex items-center gap-3 sm:mb-6">
+        <div
+          className="flex h-12 w-12 items-center justify-center rounded-2xl sm:h-11 sm:w-11 sm:rounded-xl"
+          style={{ background: 'var(--gradient-primary)' }}
+        >
+          <Receipt className="h-6 w-6 text-primary-foreground sm:h-5 sm:w-5" />
         </div>
         <div>
-          <h2 className="text-lg font-bold">New Expense</h2>
-          <p className="text-xs text-muted-foreground">Track where your money goes</p>
+          <h2 className="text-lg font-bold sm:text-lg">Add expense</h2>
+          <p className="text-sm text-muted-foreground sm:text-xs">Full details when you need them</p>
         </div>
       </div>
 
       <div className="space-y-5">
+        {topFavoriteExpenses.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              <Star className="w-3.5 h-3.5" />
+              Favorites
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {topFavoriteExpenses.map((fav) => (
+                <button
+                  key={fav.id}
+                  type="button"
+                  onClick={() => applyDraft({ amountCents: fav.amountCents, category: fav.category, title: fav.title })}
+                  className="rounded-xl border border-border bg-secondary/60 hover:bg-secondary transition-colors px-3 py-3 text-left min-h-[56px]"
+                >
+                  <p className="text-sm font-semibold">{fav.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatMoney(fav.amountCents, currency)} · {categoryByValue.get(fav.category)?.label ?? fav.category}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Amount */}
         <div>
           <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">Amount</label>
@@ -121,10 +294,11 @@ export function ExpenseForm({
             <input
               type="number"
               step="0.01"
+              inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
-              className="input-clean pl-14 text-3xl font-mono h-16 font-bold"
+              className="input-clean h-[4.25rem] min-h-[4.25rem] pl-14 font-mono text-3xl font-bold tabular-nums"
               required
             />
           </div>
@@ -136,15 +310,15 @@ export function ExpenseForm({
           {categoryError && (
             <p className="text-xs text-destructive mb-1">{categoryError}</p>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-2">
             {categories.map((cat) => (
-              <div key={cat.value} className="relative group">
+              <div key={cat.value} className="group relative">
                 <button
                   type="button"
                   onClick={() => { setCategory(cat.value); setCategoryError(null); }}
-                  className={`w-full px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                  className={`flex min-h-[3.25rem] w-full touch-manipulation items-center justify-center gap-2 rounded-2xl px-3 py-3 text-sm font-semibold transition-all duration-200 sm:min-h-[52px] sm:rounded-xl sm:px-4 ${
                     category === cat.value
-                      ? 'text-primary-foreground shadow-md -translate-y-0.5'
+                      ? 'text-primary-foreground shadow-md sm:-translate-y-0.5'
                       : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
                   }`}
                   style={category === cat.value ? { background: 'var(--gradient-primary)' } : undefined}
@@ -164,7 +338,7 @@ export function ExpenseForm({
                     type="button"
                     onClick={(e) => handleDeleteCategory(e, cat)}
                     aria-label="Delete category"
-                    className="absolute top-1.5 right-1.5 w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity bg-background/20 hover:bg-destructive/20 hover:text-destructive text-muted-foreground"
+                    className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-lg bg-background/40 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -236,14 +410,50 @@ export function ExpenseForm({
           </div>
         </div>
 
-        {/* Expandable */}
-        <button
-          type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-sm text-muted-foreground hover:text-primary font-medium transition-colors"
-        >
-          {isExpanded ? '− Less options' : '+ More options'}
-        </button>
+        <div>
+          <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">Title</label>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Coffee, Netflix, Lunch..."
+            className="input-clean min-h-[52px] text-base"
+          />
+          {note.trim().length > 1 && smartSuggestions.byMerchant.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {smartSuggestions.byMerchant.map((suggestion) => (
+                <button
+                  key={`${suggestion.id}-suggestion`}
+                  type="button"
+                  onClick={() =>
+                    applyDraft({
+                      title: suggestion.note,
+                      amountCents: suggestion.amountCents,
+                      category: suggestion.category,
+                    })
+                  }
+                  className="w-full text-left rounded-lg px-3 py-2 bg-secondary/60 hover:bg-secondary transition-colors text-sm"
+                >
+                  {suggestion.note} — {categoryByValue.get(suggestion.category)?.label ?? suggestion.category} — {formatMoney(suggestion.amountCents, currency)}
+                </button>
+              ))}
+            </div>
+          )}
+          {smartSuggestions.amountHints.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {smartSuggestions.amountHints.map((hint) => (
+                <button
+                  key={`amount-hint-${hint}`}
+                  type="button"
+                  onClick={() => setAmount(centsToEuros(hint).toFixed(2))}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-secondary/70 hover:bg-secondary"
+                >
+                  {formatMoney(hint, currency)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {isExpanded && (
           <div className="space-y-4 animate-slide-up">
@@ -251,21 +461,40 @@ export function ExpenseForm({
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">Date</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input-clean" />
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">Note (optional)</label>
-              <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was this for?" className="input-clean" />
-            </div>
           </div>
         )}
 
         <button
-          type="submit"
-          disabled={!amount || parseFloat(amount) <= 0 || isSaving}
-          className="btn-primary w-full h-14 text-base gap-2"
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-sm text-muted-foreground hover:text-primary font-medium transition-colors"
         >
-          <Plus className="w-5 h-5" />
-          {isSaving ? 'Saving…' : 'Add Expense'}
+          {isExpanded ? '− Hide advanced options' : '+ More options'}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setSaveAsFavorite((prev) => !prev)}
+          className={`w-full rounded-xl border px-3 py-2 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+            saveAsFavorite
+              ? 'border-primary text-primary bg-primary/10'
+              : 'border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+          }`}
+        >
+          {saveAsFavorite ? <Check className="w-4 h-4" /> : <Star className="w-4 h-4" />}
+          Save this expense as favorite
+        </button>
+
+        <div className="sticky bottom-2 z-10 pt-2 sm:bottom-3">
+          <button
+            type="submit"
+            disabled={!amount || parseFloat(amount) <= 0 || isSaving}
+            className="btn-primary h-14 w-full gap-2 text-base shadow-xl touch-manipulation"
+          >
+            <Plus className="w-5 h-5" />
+            {isSaving ? 'Saving…' : 'Add Expense'}
+          </button>
+        </div>
       </div>
     </form>
   );

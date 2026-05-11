@@ -13,10 +13,12 @@ interface SalarySetupProps {
   /** ISO 4217 code for display and salary input prefix */
   currency?: string;
   onSave: (salaryCents: number, incomeNote?: string) => void;
+  /** When true, omit outer card chrome for use inside BudgetSummary. */
+  embedded?: boolean;
 }
 
 export const SalarySetup = forwardRef<SalarySetupHandle, SalarySetupProps>(function SalarySetup(
-  { currentSalaryCents, incomeNote, currency = 'EUR', onSave },
+  { currentSalaryCents, incomeNote, currency = 'EUR', onSave, embedded = false },
   ref,
 ) {
   const [amount, setAmount] = useState(
@@ -56,8 +58,12 @@ export const SalarySetup = forwardRef<SalarySetupHandle, SalarySetupProps>(funct
         id="salary-setup-section"
         type="button"
         onClick={() => setIsEditing(true)}
-        className="group w-full flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200"
-        style={{ boxShadow: 'var(--shadow-sm)' }}
+        className={
+          embedded
+            ? 'group flex w-full items-center gap-3 rounded-xl py-1 text-left transition-colors hover:bg-muted/40 sm:gap-4'
+            : 'group flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-5 transition-all duration-200 hover:border-primary/30'
+        }
+        style={embedded ? undefined : { boxShadow: 'var(--shadow-sm)' }}
       >
         <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-accent)' }}>
           <Wallet className="w-5 h-5 text-accent-foreground" />
@@ -79,7 +85,15 @@ export const SalarySetup = forwardRef<SalarySetupHandle, SalarySetupProps>(funct
   }
 
   return (
-    <div id="salary-setup-section" className="flex items-center gap-4 p-5 rounded-2xl bg-card border border-border animate-scale-in" style={{ boxShadow: 'var(--shadow-md)' }}>
+    <div
+      id="salary-setup-section"
+      className={
+        embedded
+          ? 'flex animate-scale-in items-center gap-3 sm:gap-4'
+          : 'flex animate-scale-in items-center gap-4 rounded-2xl border border-border bg-card p-5'
+      }
+      style={embedded ? undefined : { boxShadow: 'var(--shadow-md)' }}
+    >
       <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--gradient-accent)' }}>
         <Wallet className="w-5 h-5 text-accent-foreground" />
       </div>

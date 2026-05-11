@@ -1,51 +1,60 @@
 import type { ReactNode } from "react";
 import { Wallet } from "lucide-react";
-import { Link } from "react-router-dom";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { cn } from "@/lib/utils";
+import { PublicAuthFooter } from "@/components/auth/PublicAuthFooter";
+import { PublicAuthHeader } from "@/components/auth/PublicAuthHeader";
 
 export function AuthShell({
   title,
   subtitle,
   children,
   footer,
+  showCardBrandIcon = false,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  showCardBrandIcon?: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="container max-w-6xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: "var(--gradient-primary)" }}
-            >
-              <Wallet className="h-5 w-5 text-black" aria-hidden="true" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Budget Tracker</h1>
-              <p className="text-[11px] text-muted-foreground tracking-wide uppercase">
-                Secure account access
-              </p>
-            </div>
-          </Link>
-          <ThemeToggle />
-        </div>
-      </header>
+    <div className="auth-shell-page flex min-h-screen flex-col text-foreground">
+      <PublicAuthHeader />
 
-      <main className="container max-w-md px-4 py-12">
-        <div className="card-elevated p-6 space-y-5">
-          <div className="space-y-1">
-            <h2 className="text-2xl font-semibold">{title}</h2>
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <main className="flex flex-1 flex-col items-center justify-center px-4 pb-6 pt-4 sm:px-6 sm:pt-6">
+        <div
+          className={cn(
+            "w-full max-w-[420px] space-y-6 rounded-xl border border-border/70 bg-card p-7 shadow-[0_8px_30px_rgb(0,0,0,0.06)] sm:p-8",
+            "dark:border-border dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)]",
+          )}
+        >
+          {showCardBrandIcon ? (
+            <div className="flex justify-center">
+              <div
+                className="flex h-11 w-11 items-center justify-center rounded-lg shadow-md shadow-primary/15"
+                style={{ background: "var(--gradient-primary)" }}
+              >
+                <Wallet className="h-5 w-5 text-primary-foreground" aria-hidden />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5 text-center">
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
+            {subtitle ? <p className="text-sm text-muted-foreground sm:text-[15px]">{subtitle}</p> : null}
           </div>
+
           {children}
-          {footer ? <div className="text-sm text-muted-foreground">{footer}</div> : null}
+
+          {footer ? (
+            <div className="text-center text-sm text-muted-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline">
+              {footer}
+            </div>
+          ) : null}
         </div>
       </main>
+
+      <PublicAuthFooter />
     </div>
   );
 }

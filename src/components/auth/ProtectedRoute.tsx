@@ -1,9 +1,12 @@
 import { Navigate, useLocation } from "react-router-dom";
 import type { ReactElement } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useDemo } from "@/context/DemoContext";
+import { DemoModeBanner } from "@/components/DemoModeBanner";
 
 export function ProtectedRoute({ children }: { children: ReactElement }) {
   const { user, loading } = useAuth();
+  const { isDemoMode } = useDemo();
   const location = useLocation();
 
   if (loading) {
@@ -14,7 +17,7 @@ export function ProtectedRoute({ children }: { children: ReactElement }) {
     );
   }
 
-  if (!user) {
+  if (!user && !isDemoMode) {
     return (
       <Navigate
         to="/login"
@@ -24,5 +27,10 @@ export function ProtectedRoute({ children }: { children: ReactElement }) {
     );
   }
 
-  return children;
+  return (
+    <>
+      {isDemoMode ? <DemoModeBanner /> : null}
+      {children}
+    </>
+  );
 }

@@ -193,10 +193,37 @@ export function useFinanceData() {
   }, [currentMonth, getOrCreateBudget]);
 
   const updateExpense = useCallback((id: string, updates: Partial<Omit<Expense, 'id' | 'createdAt' | 'budgetMonthId' | 'month'>>) => {
-    setData(prev => ({
-      ...prev,
-      expenses: prev.expenses.map(exp => exp.id === id ? { ...exp, ...updates } : exp),
-    }));
+    setData((prev) => {
+      let nextBudgets = prev.budgets;
+      const nextExpenses = prev.expenses.map((exp) => {
+        if (exp.id !== id) return exp;
+        const merged: Expense = { ...exp, ...updates };
+        if (updates.date !== undefined) {
+          const ym = updates.date.slice(0, 7);
+          merged.month = ym;
+          const existing = prev.budgets[ym];
+          const budget: BudgetMonth =
+            existing ??
+            ({
+              id: crypto.randomUUID(),
+              month: ym,
+              salaryCents: 0,
+              currency: Object.values(prev.budgets)[0]?.currency ?? 'EUR',
+              createdAt: new Date().toISOString(),
+            } satisfies BudgetMonth);
+          merged.budgetMonthId = budget.id;
+          if (!existing) {
+            nextBudgets = { ...prev.budgets, [ym]: budget };
+          }
+        }
+        return merged;
+      });
+      return {
+        ...prev,
+        budgets: nextBudgets,
+        expenses: nextExpenses,
+      };
+    });
   }, []);
 
   const deleteExpense = useCallback((id: string) => {

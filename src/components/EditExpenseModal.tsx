@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -9,15 +10,32 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { Category, CategoryDef, Expense } from '@/types/finance';
-import { eurosToCents, centsToEuros, getCurrencySymbol } from '@/utils/money';
+import {
+  centsToEuros,
+  eurosToCents,
+  getCurrencySymbol,
+  normalizeYearMonthYm,
+  toDateInputValue,
+} from '@/utils/money';
 import { getCategoryIcon } from '@/utils/categoryIcons';
 
-function lastDayOfMonthYm(monthYm: string): string {
-  const [y, m] = monthYm.split('-').map(Number);
-  const last = new Date(y, m, 0);
-  const day = String(last.getDate()).padStart(2, '0');
-  return `${monthYm.slice(0, 7)}-${day}`;
+function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function parseYmdToLocalDate(ymd: string): Date | undefined {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return undefined;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const dt = new Date(y, mo - 1, day);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== day) return undefined;
+  return dt;
 }
 
 interface EditExpenseModalProps {
@@ -26,7 +44,7 @@ interface EditExpenseModalProps {
   expense: Expense | null;
   categories: CategoryDef[];
   currency?: string;
-  /** YYYY-MM — edited date must stay in this month (dashboard month) */
+  /** YYYY-MM for the list you're editing from — used as a fallback if the expense has no valid date */
   monthScope: string;
   onSave: (
     id: string,
@@ -48,33 +66,59 @@ export function EditExpenseModal({
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const formSyncKeyRef = useRef<string | null>(null);
+
+  const scopeYm = normalizeYearMonthYm(monthScope);
+
+  const scopedMonthStart = useMemo(() => {
+    const [sy, sm] = scopeYm.split('-').map(Number);
+    return new Date(sy, sm - 1, 1);
+  }, [scopeYm]);
+
+  const selectedCalendarDate = useMemo(() => parseYmdToLocalDate(date), [date]);
 
   useEffect(() => {
-    if (!open || !expense) return;
+    if (!open) {
+      formSyncKeyRef.current = null;
+      setDatePickerOpen(false);
+      return;
+    }
+    if (!expense) return;
+
+    const syncKey = `${expense.id}|${scopeYm}`;
+    if (formSyncKeyRef.current === syncKey) {
+      return;
+    }
+    formSyncKeyRef.current = syncKey;
+
     setAmount(centsToEuros(expense.amountCents).toString());
     setCategory(expense.category);
-    setDate(expense.date);
+    const normalized = toDateInputValue(expense.date);
+    setDate(normalized || `${scopeYm}-01`);
     setNote(expense.note);
-  }, [open, expense]);
+  }, [open, expense, scopeYm]);
 
   const handleSave = async () => {
     if (!expense) return;
-    const value = parseFloat(amount.replace(',', '.'));
+    const rawAmount = amount.replace(/\s/g, '').replace(',', '.');
+    const value = Number.parseFloat(rawAmount);
     if (Number.isNaN(value) || value <= 0) {
       toast.error('Invalid amount', { description: 'Enter a positive amount.' });
       return;
     }
-    if (!date.trim()) {
-      toast.error('Date required');
-      return;
+    let dateToSave = toDateInputValue(date);
+    if (!dateToSave) {
+      dateToSave = toDateInputValue(expense.date);
     }
-    if (date.slice(0, 7) !== monthScope) {
-      toast.error('Invalid date', { description: `Date must be within ${monthScope}.` });
+    if (!dateToSave) {
+      toast.error('Invalid date', { description: 'Choose a valid calendar day.' });
       return;
     }
     const allowed = new Set(categories.map((c) => c.value));
+    if (expense.category) allowed.add(expense.category);
     if (!allowed.has(category)) {
-      toast.error('Invalid category');
+      toast.error('Invalid category', { description: 'Pick a category from the list.' });
       return;
     }
 
@@ -83,7 +127,7 @@ export function EditExpenseModal({
       await onSave(expense.id, {
         amountCents: eurosToCents(value),
         category,
-        date,
+        date: dateToSave,
         note: note.trim(),
       });
       toast.success('Expense updated');
@@ -96,16 +140,14 @@ export function EditExpenseModal({
     }
   };
 
-  const minDate = `${monthScope}-01`;
-  const maxDate = lastDayOfMonthYm(monthScope);
-
   return (
     <Dialog open={open} onOpenChange={(next) => !isSaving && onOpenChange(next)}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto sm:rounded-xl border-border">
         <DialogHeader>
           <DialogTitle>Edit expense</DialogTitle>
           <DialogDescription>
-            Update amount, category, date, or note. Changes apply immediately.
+            Update amount, category, date, or note. Choosing a date in another month moves this expense to that
+            month after you save.
           </DialogDescription>
         </DialogHeader>
 
@@ -168,15 +210,42 @@ export function EditExpenseModal({
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">
                 Date
               </label>
-              <input
-                type="date"
-                min={minDate}
-                max={maxDate}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="input-clean w-full"
-                disabled={isSaving}
-              />
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen} modal={false}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    className={cn(
+                      'input-clean w-full flex items-center justify-between gap-2 text-left font-normal min-h-[2.75rem]',
+                      !date && 'text-muted-foreground',
+                    )}
+                  >
+                    <span>
+                      {selectedCalendarDate
+                        ? selectedCalendarDate.toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                          })
+                        : 'Pick a day'}
+                    </span>
+                    <CalendarIcon className="h-4 w-4 shrink-0 opacity-50" aria-hidden />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedCalendarDate}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      setDate(localYmd(d));
+                      setDatePickerOpen(false);
+                    }}
+                    defaultMonth={selectedCalendarDate ?? scopedMonthStart}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div>

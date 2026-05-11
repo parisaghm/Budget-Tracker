@@ -110,6 +110,18 @@
   }
 }
 
+@layer components {
+  .auth-shell-page {
+    background-color: hsl(var(--background));
+    background-image: radial-gradient(hsl(var(--foreground) / 0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .dark .auth-shell-page {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.1) 1px, transparent 1px);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -118,11 +130,18 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
   }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 @layer components {
@@ -228,6 +247,20 @@
 }
 
 @layer utilities {
+  /** Space for thumb-friendly bottom nav + home indicator (iOS) */
+  .pb-mobile-nav {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  /** FAB sits above bottom nav */
+  .bottom-mobile-fab {
+    bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .touch-hit {
+    touch-action: manipulation;
+  }
+
   .animate-slide-up {
     animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }

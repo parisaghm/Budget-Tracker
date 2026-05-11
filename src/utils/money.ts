@@ -2,6 +2,7 @@
  * Convert euros to cents for storage
  */
 export function eurosToCents(euros: number): number {
+  if (!Number.isFinite(euros)) return 0;
   return Math.round(euros * 100);
 }
 
@@ -110,6 +111,18 @@ export function getCurrentMonth(): string {
 }
 
 /**
+ * Normalize a month key to strict YYYY-MM (zero-padded month).
+ */
+export function normalizeYearMonthYm(raw: string): string {
+  const s = raw.trim();
+  const m = s.match(/^(\d{4})-(\d{1,2})$/);
+  if (!m) return s;
+  const mo = Number(m[2]);
+  if (!Number.isFinite(mo) || mo < 1 || mo > 12) return s;
+  return `${m[1]}-${String(mo).padStart(2, '0')}`;
+}
+
+/**
  * Format month string for display
  */
 export function formatMonth(monthStr: string): string {
@@ -132,31 +145,60 @@ export function getPreviousMonth(monthStr: string): string {
   return `${prevYear}-${prevMonth}`;
 }
 
+/** YYYY-MM-DD in the user's local calendar (not UTC). */
+function localCalendarYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /**
- * Get today's date in YYYY-MM-DD format
+ * Get today's date in YYYY-MM-DD format (local calendar).
  */
 export function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return localCalendarYmd(new Date());
+}
+
+/**
+ * Normalize DB/API date strings for HTML date inputs (value must be YYYY-MM-DD).
+ * Handles ISO timestamps and plain dates; returns '' if not a valid calendar day.
+ */
+export function toDateInputValue(raw: string | null | undefined): string {
+  if (raw == null || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  const m = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!m) return '';
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(day)) return '';
+  if (mo < 1 || mo > 12 || day < 1 || day > 31) return '';
+  const dt = new Date(y, mo - 1, day);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== day) return '';
+  return `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 /**
  * Format date for display
  */
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
+  const head = dateStr.trim().slice(0, 10);
+  const isYmd = /^\d{4}-\d{2}-\d{2}$/.test(head);
+  const date = isYmd
+    ? new Date(Number(head.slice(0, 4)), Number(head.slice(5, 7)) - 1, Number(head.slice(8, 10)))
+    : new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return dateStr;
 
-  if (dateStr === getTodayDate()) {
+  const dayKey = isYmd ? head : localCalendarYmd(date);
+  if (dayKey === getTodayDate()) {
     return 'Today';
   }
-  if (dateStr === yesterday.toISOString().split('T')[0]) {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (dayKey === localCalendarYmd(yesterday)) {
     return 'Yesterday';
   }
 
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
     day: 'numeric',
   });
 }

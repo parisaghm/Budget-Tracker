@@ -79,6 +79,25 @@ export interface SavingsGoal {
   createdAt: string;
 }
 
+export type BillFrequency = "monthly" | "weekly" | "biweekly" | "yearly";
+export type BillStatus = "upcoming" | "paid" | "skipped";
+
+export interface RecurringBill {
+  id: string;
+  userId: string;
+  name: string;
+  amountCents: number;
+  category: Category;
+  dueDay: number;
+  frequency: BillFrequency;
+  status: BillStatus;
+  lastPaidDate?: string;
+  nextDueDate: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const getCategoryLabel = (category: Category, customCategories: CategoryDef[] = []): string => {
   const all = [...DEFAULT_CATEGORIES, ...customCategories];
   return all.find(c => c.value === category)?.label || category;

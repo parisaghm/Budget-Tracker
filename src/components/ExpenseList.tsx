@@ -19,7 +19,7 @@ interface ExpenseListProps {
   expenses: Expense[];
   categories: CategoryDef[];
   currency?: string;
-  /** Dashboard month (YYYY-MM); edit date is constrained to this month */
+  /** Dashboard month (YYYY-MM); edited expense dates must stay in this month */
   monthScope: string;
   categoryFilter?: Category | 'all';
   onCategoryFilterChange?: (category: Category | 'all') => void;
@@ -81,8 +81,11 @@ export function ExpenseList({
         <div className="w-16 h-16 rounded-2xl bg-muted mx-auto mb-4 flex items-center justify-center">
           <ReceiptText className="w-8 h-8 text-muted-foreground" />
         </div>
-        <h3 className="font-bold text-lg mb-1">No expenses yet</h3>
-        <p className="text-muted-foreground text-sm">Add your first expense to start tracking</p>
+        <h3 className="font-bold text-lg mb-1">Start tracking your spending</h3>
+        <p className="text-muted-foreground text-sm mb-4">Add your first expense to begin understanding where your money goes.</p>
+        <p className="inline-flex items-center rounded-xl bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground">
+          Add expense
+        </p>
       </div>
     );
   }
@@ -154,6 +157,7 @@ export function ExpenseList({
       </div>
 
       <EditExpenseModal
+        key={editingExpense?.id ?? 'none'}
         open={editingExpense !== null}
         onOpenChange={(open) => !open && setEditingExpense(null)}
         expense={editingExpense}
