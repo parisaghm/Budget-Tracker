@@ -1,0 +1,36 @@
+import { Navigate, useLocation } from "react-router-dom";
+import type { ReactElement } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useDemo } from "@/context/DemoContext";
+import { DemoModeBanner } from "@/components/DemoModeBanner";
+
+export function ProtectedRoute({ children }: { children: ReactElement }) {
+  const { user, loading } = useAuth();
+  const { isDemoMode } = useDemo();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background">
+        <p className="text-sm text-muted-foreground">Checking session...</p>
+      </div>
+    );
+  }
+
+  if (!user && !isDemoMode) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
+  }
+
+  return (
+    <>
+      {isDemoMode ? <DemoModeBanner /> : null}
+      {children}
+    </>
+  );
+}
