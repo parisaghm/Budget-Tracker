@@ -2,13 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, Receipt, Star, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Category, CategoryDef, Expense } from '@/types/finance';
-import { centsToEuros, eurosToCents, formatMoney, getCurrencySymbol, getTodayDate } from '@/utils/money';
+import {
+  centsToEuros,
+  defaultExpenseDateForBudgetMonth,
+  eurosToCents,
+  formatMoney,
+  getCurrencySymbol,
+  getTodayDate,
+} from '@/utils/money';
 import { getCategoryIcon, ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
 
 type DeleteCategoryResult = { success: true } | { success: false; error: string };
 
 interface ExpenseFormProps {
   currency?: string;
+  /** YYYY-MM of the month being viewed — new expenses default to a day in this month */
+  budgetMonth?: string;
   onAdd: (expense: { amountCents: number; category: Category; date: string; note: string }) => void | Promise<void>;
   categories: CategoryDef[];
   expenses: Expense[];
@@ -46,6 +55,7 @@ function readFavorites(): FavoriteExpense[] {
 
 export function ExpenseForm({
   currency = 'EUR',
+  budgetMonth,
   onAdd,
   categories,
   expenses,
@@ -54,7 +64,9 @@ export function ExpenseForm({
 }: ExpenseFormProps) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>(categories[0]?.value || 'groceries');
-  const [date, setDate] = useState(getTodayDate());
+  const [date, setDate] = useState(() =>
+    budgetMonth?.trim() ? defaultExpenseDateForBudgetMonth(budgetMonth) : getTodayDate(),
+  );
   const [note, setNote] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -69,6 +81,12 @@ export function ExpenseForm({
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
   }, [favorites]);
+
+  useEffect(() => {
+    const ym = budgetMonth?.trim();
+    if (!ym) return;
+    setDate(defaultExpenseDateForBudgetMonth(ym));
+  }, [budgetMonth]);
 
   const sortedExpenses = useMemo(
     () => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -190,7 +208,7 @@ export function ExpenseForm({
         }
         setAmount('');
         setNote('');
-        setDate(getTodayDate());
+        setDate(budgetMonth?.trim() ? defaultExpenseDateForBudgetMonth(budgetMonth) : getTodayDate());
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Could not save expense';
         toast.error('Expense not saved', { description: message });
@@ -485,7 +503,7 @@ export function ExpenseForm({
           Save this expense as favorite
         </button>
 
-        <div className="sticky bottom-2 z-10 pt-2 sm:bottom-3">
+        <div className="pt-2">
           <button
             type="submit"
             disabled={!amount || parseFloat(amount) <= 0 || isSaving}

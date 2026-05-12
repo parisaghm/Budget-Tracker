@@ -23,7 +23,7 @@ export function PublicAuthHeader() {
             <Wallet className="h-5 w-5 text-primary-foreground" aria-hidden />
           </div>
           <div className="min-w-0 text-left leading-tight">
-            <p className="text-base font-bold tracking-tight text-foreground sm:text-lg">Budget Tracker</p>
+            <p className="text-base font-bold tracking-tight text-foreground sm:text-lg">Sova Budget</p>
             <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground sm:text-[11px]">
               WEEKLY CLARITY
             </p>

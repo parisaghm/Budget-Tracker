@@ -38,7 +38,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { isDemoMode } = useDemo();
   const { onboardingData, complete } = useOnboardingProfile();
-  const { budget, allCategories, addExpense, syncFromOnboarding } = useSupabaseFinanceData();
+  const { budget, allCategories, addExpense, syncFromOnboarding, currentMonth } = useSupabaseFinanceData();
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>(readNotificationPreferences);
 
   const handleSave = async (data: OnboardingData) => {
@@ -71,7 +71,7 @@ export default function SettingsPage() {
   return (
     <>
       <Helmet>
-        <title>Settings - Budget Tracker</title>
+        <title>Settings - Sova Budget</title>
       </Helmet>
       <div className="bg-background pb-mobile-nav md:pb-24">
         <div className="container mx-auto max-w-2xl space-y-4 px-4 pt-5 sm:pt-6">
@@ -126,6 +126,7 @@ export default function SettingsPage() {
         <QuickAddExpenseSheet
           currency={budget?.currency ?? "EUR"}
           categories={allCategories}
+          budgetMonth={currentMonth}
           onAdd={addExpense}
         />
         <MobileBottomNav />

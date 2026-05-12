@@ -77,7 +77,7 @@ export default function AuthCallback() {
   return (
     <>
       <Helmet>
-        <title>Budget Tracker — Finishing sign-in</title>
+        <title>Sova Budget — Finishing sign-in</title>
       </Helmet>
       <AuthShell title="Finishing sign-in" subtitle="Completing your Google login securely.">
         <div className="space-y-4">

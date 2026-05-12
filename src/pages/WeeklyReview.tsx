@@ -41,6 +41,7 @@ export default function WeeklyReviewPage() {
     safeToSpendCents,
     allCategories,
     addExpense,
+    currentMonth,
   } = useSupabaseFinanceData();
   const { onboardingData, isReady: onboardingReady } = useOnboardingProfile();
 
@@ -243,7 +244,12 @@ export default function WeeklyReviewPage() {
           )}
         </main>
       </div>
-      <QuickAddExpenseSheet currency={activeCurrency} categories={allCategories} onAdd={addExpense} />
+      <QuickAddExpenseSheet
+        currency={activeCurrency}
+        categories={allCategories}
+        budgetMonth={currentMonth}
+        onAdd={addExpense}
+      />
       <MobileBottomNav />
     </>
   );

@@ -11,7 +11,7 @@ export default function Login() {
   return (
     <>
       <Helmet>
-        <title>Budget Tracker — Log in</title>
+        <title>Sova Budget — Log in</title>
       </Helmet>
       <AuthShell showCardBrandIcon title="Welcome back" subtitle="Sign in to your account.">
         <LoginForm redirectTo={target} signupHref="/signup" />

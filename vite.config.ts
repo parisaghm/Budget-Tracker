@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => ({
       injectRegister: null,
       includeAssets: ["icons/wallet.svg", "icons/budget-tracker.svg", "robots.txt"],
       manifest: {
-        name: "Budget Tracker",
-        short_name: "Budget",
+        name: "Sova Budget",
+        short_name: "Sova",
         description: "A calm weekly money companion for tracking safe-to-spend and expenses.",
         theme_color: "#6a5cff",
         background_color: "#111325",

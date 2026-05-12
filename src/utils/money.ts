@@ -158,6 +158,18 @@ export function getTodayDate(): string {
 }
 
 /**
+ * Default calendar day for a new expense in a given budget month (YYYY-MM).
+ * Uses today when today falls in that month; otherwise the first day of that month
+ * so `date` stays aligned with the budget month the user is viewing.
+ */
+export function defaultExpenseDateForBudgetMonth(budgetMonthYm: string): string {
+  const ym = normalizeYearMonthYm(budgetMonthYm);
+  const today = getTodayDate();
+  if (normalizeYearMonthYm(today.slice(0, 7)) === ym) return today;
+  return `${ym}-01`;
+}
+
+/**
  * Normalize DB/API date strings for HTML date inputs (value must be YYYY-MM-DD).
  * Handles ISO timestamps and plain dates; returns '' if not a valid calendar day.
  */

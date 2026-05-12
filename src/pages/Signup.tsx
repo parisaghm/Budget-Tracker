@@ -6,7 +6,7 @@ export default function Signup() {
   return (
     <>
       <Helmet>
-        <title>Budget Tracker — Create account</title>
+        <title>Sova Budget — Create account</title>
       </Helmet>
       <AuthShell
         showCardBrandIcon

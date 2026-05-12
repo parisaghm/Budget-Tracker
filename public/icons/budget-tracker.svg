@@ -4,7 +4,7 @@
   role="img"
   aria-labelledby="title desc"
 >
-  <title id="title">Budget Tracker</title>
+  <title id="title">Sova Budget</title>
   <desc id="desc">Minimal wallet and coin icon for budgeting</desc>
 
   <!-- Outer transparent rounded square, sized to look balanced inside the purple container -->

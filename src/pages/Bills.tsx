@@ -27,6 +27,7 @@ export default function BillsPage() {
     deleteRecurringBill,
     markRecurringBillPaid,
     addExpense,
+    currentMonth,
   } = useSupabaseFinanceData();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -233,7 +234,12 @@ export default function BillsPage() {
           )}
         </main>
       </div>
-      <QuickAddExpenseSheet currency={activeCurrency} categories={allCategories} onAdd={addExpense} />
+      <QuickAddExpenseSheet
+        currency={activeCurrency}
+        categories={allCategories}
+        budgetMonth={currentMonth}
+        onAdd={addExpense}
+      />
       <MobileBottomNav />
       <RecurringBillForm
         open={isFormOpen}

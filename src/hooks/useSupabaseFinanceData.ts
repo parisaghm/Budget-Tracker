@@ -899,11 +899,12 @@ function useFinanceDataInternal() {
         };
       });
 
-      if (updates.date !== undefined && rowMonthKey && rowMonthKey !== normalizeYearMonthYm(currentMonth)) {
-        setCurrentMonth(rowMonthKey);
-      }
+      // Do not auto-navigate to another month after an edit — the user stays on
+      // the month they were viewing. The expense will simply disappear from the
+      // current month list (correct behaviour when the date was moved) without
+      // any unexpected page jump.
     },
-    [isDemoMode, user, data.budgets, currentMonth, setCurrentMonth],
+    [isDemoMode, user, data.budgets],
   );
 
   const deleteExpense = useCallback(async (id: string) => {

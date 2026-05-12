@@ -22,7 +22,7 @@ export default function ForgotPassword() {
     }
 
     if (!email) {
-      setError("Add the email you use for Budget Tracker so we can send the link.");
+      setError("Add the email you use for Sova Budget so we can send the link.");
       return;
     }
 

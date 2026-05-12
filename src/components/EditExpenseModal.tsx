@@ -122,14 +122,19 @@ export function EditExpenseModal({
       return;
     }
 
+    const baselineYmd = toDateInputValue(expense.date) || `${scopeYm}-01`;
+    const updates: Partial<Omit<Expense, 'id' | 'createdAt' | 'budgetMonthId' | 'month'>> = {
+      amountCents: eurosToCents(value),
+      category,
+      note: note.trim(),
+    };
+    if (dateToSave !== baselineYmd) {
+      updates.date = dateToSave;
+    }
+
     setIsSaving(true);
     try {
-      await onSave(expense.id, {
-        amountCents: eurosToCents(value),
-        category,
-        date: dateToSave,
-        note: note.trim(),
-      });
+      await onSave(expense.id, updates);
       toast.success('Expense updated');
       onOpenChange(false);
     } catch (err) {

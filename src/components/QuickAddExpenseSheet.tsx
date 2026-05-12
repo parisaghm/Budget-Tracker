@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { CategoryDef } from "@/types/finance";
-import { eurosToCents, getCurrencySymbol, getTodayDate } from "@/utils/money";
+import { defaultExpenseDateForBudgetMonth, eurosToCents, getCurrencySymbol, getTodayDate } from "@/utils/money";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -17,10 +17,12 @@ import {
 interface QuickAddExpenseSheetProps {
   currency?: string;
   categories: CategoryDef[];
+  /** YYYY-MM for the budget month new expenses are posted to */
+  budgetMonth?: string;
   onAdd: (expense: { amountCents: number; category: string; date: string; note: string }) => Promise<void> | void;
 }
 
-export function QuickAddExpenseSheet({ currency = "EUR", categories, onAdd }: QuickAddExpenseSheetProps) {
+export function QuickAddExpenseSheet({ currency = "EUR", categories, budgetMonth, onAdd }: QuickAddExpenseSheetProps) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(categories[0]?.value ?? "other");
@@ -43,11 +45,13 @@ export function QuickAddExpenseSheet({ currency = "EUR", categories, onAdd }: Qu
 
     setIsSaving(true);
     try {
+      const expenseDate =
+        budgetMonth?.trim() ? defaultExpenseDateForBudgetMonth(budgetMonth) : getTodayDate();
       await Promise.resolve(
         onAdd({
           amountCents: eurosToCents(parsed),
           category,
-          date: getTodayDate(),
+          date: expenseDate,
           note: note.trim(),
         }),
       );

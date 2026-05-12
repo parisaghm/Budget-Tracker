@@ -17,7 +17,7 @@ export function InstallAppButton() {
       onClick={async () => {
         const accepted = await install();
         if (accepted) {
-          toast.success("Budget Tracker installed");
+          toast.success("Sova Budget installed");
           return;
         }
         toast.message("Install canceled");

@@ -12,8 +12,8 @@ export default function PublicAuth() {
     return (
       <>
         <Helmet>
-          <title>Budget Tracker — Create account</title>
-          <meta name="description" content="Create your Budget Tracker account and start weekly budgeting." />
+          <title>Sova Budget — Create account</title>
+          <meta name="description" content="Create your Sova Budget account and start weekly budgeting." />
         </Helmet>
         <AuthShell
           showCardBrandIcon
@@ -29,8 +29,8 @@ export default function PublicAuth() {
   return (
     <>
       <Helmet>
-        <title>Budget Tracker — Log in</title>
-        <meta name="description" content="Sign in to Budget Tracker for weekly spending clarity." />
+        <title>Sova Budget — Log in</title>
+        <meta name="description" content="Sign in to Sova Budget for weekly spending clarity." />
       </Helmet>
       <AuthShell showCardBrandIcon title="Welcome back" subtitle="Sign in to your account.">
         <LoginForm redirectTo="/dashboard" signupHref="/?mode=signup" />

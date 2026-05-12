@@ -436,6 +436,7 @@ export default function Dashboard() {
   const expenseFormSection = (
     <ExpenseForm
       currency={activeCurrency}
+      budgetMonth={currentMonth}
       onAdd={addExpense}
       categories={allCategories}
       expenses={expenses}
@@ -460,7 +461,7 @@ export default function Dashboard() {
   return (
     <>
       <Helmet>
-        <title>Budget Tracker - Manage Your Monthly Finances</title>
+        <title>Sova Budget - Manage Your Monthly Finances</title>
         <meta name="description" content="Track your monthly expenses, manage your budget, and stay on top of your finances with our simple budget tracking app." />
       </Helmet>
 
@@ -480,7 +481,7 @@ export default function Dashboard() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="text-lg font-bold leading-tight text-foreground sm:text-2xl">
-                        Budget Tracker
+                        Sova Budget
                       </h1>
                       {hasSupabaseEnv && !isDemoMode ? (
                         <CurrencySelector
@@ -604,6 +605,7 @@ export default function Dashboard() {
         <QuickAddExpenseSheet
           currency={activeCurrency}
           categories={allCategories}
+          budgetMonth={currentMonth}
           onAdd={addExpense}
         />
         <MobileBottomNav />
