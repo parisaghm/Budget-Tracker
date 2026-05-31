@@ -131,6 +131,13 @@ export function formatMonth(monthStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
+/** Month name only, e.g. "April" from "2026-04". */
+export function formatMonthNameOnly(monthStr: string): string {
+  const [year, month] = monthStr.split('-');
+  const date = new Date(parseInt(year, 10), parseInt(month, 10) - 1);
+  return date.toLocaleDateString('en-US', { month: 'long' });
+}
+
 /**
  * Get the previous month key for a given month (YYYY-MM), wrapping years.
  */

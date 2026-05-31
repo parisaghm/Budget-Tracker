@@ -4,15 +4,7 @@ import { toast } from 'sonner';
 import { Expense, Category, CategoryDef, getCategoryLabel, DEFAULT_CATEGORIES } from '@/types/finance';
 import { formatMoney, formatDate } from '@/utils/money';
 import { EditExpenseModal } from '@/components/EditExpenseModal';
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 import { Button } from '@/components/ui/button';
 
 interface ExpenseListProps {
@@ -167,30 +159,22 @@ export function ExpenseList({
         onSave={onUpdate}
       />
 
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}>
-        <AlertDialogContent className="sm:rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete expense?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="text-sm text-muted-foreground space-y-2 text-left">
-                <p>This removes the expense permanently. This action cannot be undone.</p>
-                {deleteTarget && (
-                  <p className="font-medium text-foreground">
-                    {formatMoney(deleteTarget.amountCents, currency)}
-                    {deleteTarget.note ? ` · ${deleteTarget.note}` : ''}
-                  </p>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <Button variant="destructive" disabled={isDeleting} onClick={() => void handleDeleteConfirm()}>
-              {isDeleting ? 'Deleting…' : 'Delete'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+        title="Delete expense?"
+        description="This removes the expense permanently. This action cannot be undone."
+        detail={
+          deleteTarget ? (
+            <>
+              {formatMoney(deleteTarget.amountCents, currency)}
+              {deleteTarget.note ? ` · ${deleteTarget.note}` : ''}
+            </>
+          ) : undefined
+        }
+        onConfirm={handleDeleteConfirm}
+        isConfirming={isDeleting}
+      />
     </>
   );
 }

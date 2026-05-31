@@ -89,31 +89,43 @@ export const SalarySetup = forwardRef<SalarySetupHandle, SalarySetupProps>(funct
       id="salary-setup-section"
       className={
         embedded
-          ? 'flex animate-scale-in items-center gap-3 sm:gap-4'
-          : 'flex animate-scale-in items-center gap-4 rounded-2xl border border-border bg-card p-5'
+          ? 'flex animate-scale-in items-start gap-3 sm:gap-4'
+          : 'flex animate-scale-in items-start gap-4 rounded-2xl border border-border bg-card p-5'
       }
       style={embedded ? undefined : { boxShadow: 'var(--shadow-md)' }}
     >
-      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--gradient-accent)' }}>
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'var(--gradient-accent)' }}>
         <Wallet className="w-5 h-5 text-accent-foreground" />
       </div>
-      <div className="flex-1">
-        <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-1.5">
-          Monthly Salary (Net)
-        </label>
-        <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-lg min-w-[1.25rem]">
-            {getCurrencySymbol(currency)}
-          </span>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="0.00"
-            className="input-clean pl-10 pr-4 font-mono text-lg h-12"
-            autoFocus
-          />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-end gap-2 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-1.5">
+              Monthly Salary (Net)
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-lg min-w-[1.25rem]">
+                {getCurrencySymbol(currency)}
+              </span>
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="0.00"
+                className="input-clean pl-10 pr-4 font-mono text-lg h-12"
+                autoFocus
+              />
+            </div>
+          </div>
+          <button
+            onClick={handleSave}
+            disabled={!amount || parseFloat(amount) <= 0}
+            className="btn-primary h-12 w-12 shrink-0 p-0"
+            aria-label="Save salary"
+          >
+            <Check className="w-5 h-5" />
+          </button>
         </div>
         <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mt-3 mb-1.5">
           Income note (optional)
@@ -126,9 +138,6 @@ export const SalarySetup = forwardRef<SalarySetupHandle, SalarySetupProps>(funct
           className="input-clean h-9 text-sm"
         />
       </div>
-      <button onClick={handleSave} disabled={!amount || parseFloat(amount) <= 0} className="btn-primary h-12 w-12 p-0">
-        <Check className="w-5 h-5" />
-      </button>
     </div>
   );
 });

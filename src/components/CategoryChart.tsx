@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Expense, Category, CategoryDef } from '@/types/finance';
 import { formatMoney, eurosToCents, centsToEuros, getCurrencySymbol } from '@/utils/money';
@@ -310,19 +310,41 @@ function SetLimitPopover({
 }) {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(currentLimitCents > 0 ? String(centsToEuros(currentLimitCents)) : '');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setInputValue(currentLimitCents > 0 ? String(centsToEuros(currentLimitCents)) : '');
+    }
+  }, [currentLimitCents, open]);
 
   const handleOpen = (isOpen: boolean) => {
     setOpen(isOpen);
-    if (isOpen) setInputValue(currentLimitCents > 0 ? String(centsToEuros(currentLimitCents)) : '');
+    if (isOpen) {
+      setInputValue(currentLimitCents > 0 ? String(centsToEuros(currentLimitCents)) : '');
+      setError(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const euros = parseFloat(inputValue.replace(',', '.'));
-    if (!isNaN(euros) && euros >= 0) {
-      onSave(eurosToCents(euros));
-      setOpen(false);
+    const trimmed = inputValue.trim();
+    if (!trimmed) {
+      setError('Enter a monthly limit amount.');
+      return;
     }
+    const euros = parseFloat(trimmed.replace(',', '.'));
+    if (Number.isNaN(euros) || euros < 0) {
+      setError('Enter a valid amount (0 or greater).');
+      return;
+    }
+    if (euros === 0 && currentLimitCents <= 0) {
+      setError('Enter a limit greater than zero, or close this dialog.');
+      return;
+    }
+    setError(null);
+    onSave(eurosToCents(euros));
+    setOpen(false);
   };
 
   return (
@@ -333,26 +355,31 @@ function SetLimitPopover({
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+          onClick={(e) => e.stopPropagation()}
         >
           <Plus className="w-3.5 h-3.5 mr-1" />
           {currentLimitCents > 0 ? 'Edit' : 'Set limit'}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64" align="end">
+      <PopoverContent className="w-64" align="end" onClick={(e) => e.stopPropagation()}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <p className="text-sm font-medium text-foreground">{categoryLabel} — monthly limit</p>
           <div className="flex gap-2">
             <Input
-              type="number"
-              min={0}
-              step={0.01}
+              type="text"
+              inputMode="decimal"
               placeholder="e.g. 600"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                if (error) setError(null);
+              }}
               className="font-mono"
+              aria-invalid={error != null}
             />
             <span className="self-center text-sm text-muted-foreground">{getCurrencySymbol(currency)}</span>
           </div>
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
           <div className="flex gap-2">
             <Button type="submit" size="sm" className="flex-1">
               Save

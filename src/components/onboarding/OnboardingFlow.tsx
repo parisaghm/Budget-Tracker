@@ -14,7 +14,15 @@ import {
   type OnboardingData,
   type OnboardingFixedBill,
 } from "@/types/onboarding";
-import { calcSafeToSpend, mergeOnboardingData, ONBOARDING_CATEGORY_LABELS } from "@/utils/onboarding";
+import {
+  calcSafeToSpend,
+  describeOnboardingSafeToSpend,
+  getOnboardingBudgetWarnings,
+  mergeOnboardingData,
+  ONBOARDING_CATEGORY_LABELS,
+} from "@/utils/onboarding";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 interface OnboardingFlowProps {
   initialData?: OnboardingData;
@@ -57,7 +65,13 @@ export function OnboardingFlow({
   }, [initialData]);
 
   const preview = useMemo(() => calcSafeToSpend(data), [data]);
+  const budgetWarnings = useMemo(() => getOnboardingBudgetWarnings(data, currency), [data, currency]);
+  const safeToSpendExplanation = useMemo(
+    () => describeOnboardingSafeToSpend(preview, currency),
+    [preview, currency],
+  );
   const progress = (step / LAST_STEP) * 100;
+  const showBudgetWarnings = step >= 3 && step < 7 && budgetWarnings.length > 0;
 
   const next = () => {
     if (step === 2 && data.monthlyIncomeCents <= 0) {
@@ -188,8 +202,16 @@ export function OnboardingFlow({
             )}
             {step === 7 && (
               <>
-                <CardTitle>You can safely spend {formatMoney(preview.recommendedWeeklyCents, currency)} this week</CardTitle>
-                <CardDescription>Based on what you shared.</CardDescription>
+                <CardTitle>
+                  {preview.recommendedWeeklyCents > 0
+                    ? `You can safely spend ${formatMoney(preview.recommendedWeeklyCents, currency)} this week`
+                    : "Your weekly safe-to-spend is zero right now"}
+                </CardTitle>
+                <CardDescription>
+                  {preview.recommendedWeeklyCents > 0
+                    ? "Based on what you shared."
+                    : "Your income is fully allocated to bills and savings."}
+                </CardDescription>
               </>
             )}
           </CardHeader>
@@ -315,6 +337,15 @@ export function OnboardingFlow({
 
             {step === 7 && (
               <div className="space-y-3">
+                {budgetWarnings.map((message) => (
+                  <Alert
+                    key={message}
+                    className="border-amber-500/40 bg-amber-500/10 text-foreground [&>svg]:text-amber-600"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{message}</AlertDescription>
+                  </Alert>
+                ))}
                 <div className="rounded-xl border border-border p-3">
                   <p className="text-xs text-muted-foreground">Monthly bills</p>
                   <p className="font-semibold">{formatMoney(preview.fixedBillsCents, currency)}</p>
@@ -326,9 +357,26 @@ export function OnboardingFlow({
                 <div className="rounded-xl border border-border p-3">
                   <p className="text-xs text-muted-foreground">Safe to spend (weekly)</p>
                   <p className="text-2xl font-bold">{formatMoney(preview.recommendedWeeklyCents, currency)}</p>
+                  {safeToSpendExplanation ? (
+                    <p className="mt-2 text-sm text-muted-foreground">{safeToSpendExplanation}</p>
+                  ) : null}
                 </div>
               </div>
             )}
+
+            {showBudgetWarnings ? (
+              <div className="space-y-2">
+                {budgetWarnings.map((message) => (
+                  <Alert
+                    key={message}
+                    className="border-amber-500/40 bg-amber-500/10 text-foreground [&>svg]:text-amber-600"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{message}</AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            ) : null}
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 

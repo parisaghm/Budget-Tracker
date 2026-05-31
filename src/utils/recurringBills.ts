@@ -49,13 +49,22 @@ export function normalizeStoredBillNextDueDate(
   nextRaw: unknown,
   dueDay: number,
   fromDate: Date = new Date(),
+  seriesStartIso?: string | null,
 ): string {
   const iso = formatSupabaseDateCellToIso(nextRaw);
   if (iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const d = parseBillDueDate(iso);
     if (!Number.isNaN(d.getTime())) return iso;
   }
-  return nextMonthlyDueOnOrAfterFromDueDay(dueDay, fromDate);
+  let anchor = startOfDay(fromDate);
+  const seriesStart = formatSupabaseDateCellToIso(seriesStartIso);
+  if (seriesStart) {
+    const seriesStartDate = startOfDay(parseBillDueDate(seriesStart));
+    if (!Number.isNaN(seriesStartDate.getTime()) && seriesStartDate > anchor) {
+      anchor = seriesStartDate;
+    }
+  }
+  return nextMonthlyDueOnOrAfterFromDueDay(dueDay, anchor);
 }
 
 /** Next monthly occurrence on `dueDay` that is on or after `fromDate` (local calendar). */
@@ -95,17 +104,81 @@ export function getDaysUntil(dateIso: string, fromDate = new Date()): number {
  * Unpaid recurring bills (`status === "upcoming"`), optionally capped by a calendar end date.
  * Includes overdue rows (due date before today) so they stay visible until marked paid or skipped.
  */
-export function getUpcomingBills(bills: RecurringBill[], rangeEndIso?: string): RecurringBill[] {
+export function isBillSeriesActive(bill: RecurringBill): boolean {
+  if (bill.paymentCount == null) return true;
+  return (bill.paymentsCompleted ?? 0) < bill.paymentCount;
+}
+
+export function getBillPaymentsRemaining(bill: RecurringBill): number | null {
+  if (bill.paymentCount == null) return null;
+  return Math.max(0, bill.paymentCount - (bill.paymentsCompleted ?? 0));
+}
+
+/** Last due date in a fixed payment series. */
+export function getBillSeriesEndDate(
+  seriesStartIso: string,
+  frequency: BillFrequency,
+  paymentCount: number,
+): string {
+  if (paymentCount <= 1) return seriesStartIso;
+  let cursor = seriesStartIso;
+  for (let i = 1; i < paymentCount; i++) {
+    cursor = getNextDateForFrequency(cursor, frequency);
+  }
+  return cursor;
+}
+
+export function formatBillSeriesSummary(bill: RecurringBill): string | null {
+  if (!bill.paymentCount) return null;
+  const remaining = getBillPaymentsRemaining(bill);
+  if (remaining === 0) {
+    return `Completed · ${bill.paymentCount} payment${bill.paymentCount === 1 ? "" : "s"}`;
+  }
+  const endIso = getBillSeriesEndDate(
+    bill.seriesStartDate ?? bill.nextDueDate,
+    bill.frequency,
+    bill.paymentCount,
+  );
+  const endLabel = format(parseBillDueDate(endIso), "MMM d, yyyy");
+  return `${remaining} of ${bill.paymentCount} left · ends ${endLabel}`;
+}
+
+export function formatBillDueDateLabel(dateIso: string, pattern = "MMM d"): string {
+  return format(parseBillDueDate(dateIso), pattern);
+}
+
+/**
+ * Unpaid recurring bills for a budget window.
+ * - `rangeEndIso`: exclusive end (e.g. first day of next month / next salary).
+ * - `rangeStartIso`: inclusive start of selected month; overdue bills before this still show.
+ */
+export function getUpcomingBills(
+  bills: RecurringBill[],
+  rangeEndIso?: string,
+  rangeStartIso?: string,
+  referenceDate = new Date(),
+): RecurringBill[] {
   const rangeEnd = rangeEndIso ? startOfDay(parseBillDueDate(rangeEndIso)) : null;
+  const rangeStart = rangeStartIso ? startOfDay(parseBillDueDate(rangeStartIso)) : null;
+  const today = startOfDay(referenceDate);
 
   return bills
     .filter((bill) => {
       if (bill.status !== "upcoming") return false;
+      if (!isBillSeriesActive(bill)) return false;
       if (!bill.nextDueDate?.trim()) return false;
       const dueParsed = parseBillDueDate(bill.nextDueDate);
       if (Number.isNaN(dueParsed.getTime())) return false;
       const due = startOfDay(dueParsed);
-      if (rangeEnd && due > rangeEnd) return false;
+
+      const seriesStartIso = bill.seriesStartDate ?? formatSupabaseDateCellToIso(bill.nextDueDate);
+      if (seriesStartIso) {
+        const seriesStart = startOfDay(parseBillDueDate(seriesStartIso));
+        if (!Number.isNaN(seriesStart.getTime()) && due < seriesStart) return false;
+      }
+
+      if (rangeEnd && due >= rangeEnd) return false;
+      if (rangeStart && due < rangeStart && due >= today) return false;
       return true;
     })
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate));

@@ -6,6 +6,7 @@ import {
   type OnboardingData,
   type OnboardingFixedBill,
 } from "@/types/onboarding";
+import { formatMoney } from "@/utils/money";
 
 const ALLOWED_ONBOARDING_CATEGORIES = new Set<string>(ONBOARDING_CATEGORY_OPTIONS);
 
@@ -106,6 +107,57 @@ export interface SafeToSpendResult {
   availableMonthlyCents: number;
   weeklyFromMonthlyCents: number;
   recommendedWeeklyCents: number;
+}
+
+/** Non-blocking warnings when income cannot cover savings and/or bills. */
+export function getOnboardingBudgetWarnings(data: OnboardingData, currency: string): string[] {
+  const income = Math.max(0, data.monthlyIncomeCents);
+  if (income <= 0) return [];
+
+  const bills = data.fixedBills.reduce((sum, bill) => sum + Math.max(0, bill.amountCents), 0);
+  const savings = Math.max(0, data.monthlySavingsGoalCents);
+  const zeroLabel = formatMoney(0, currency);
+  const messages: string[] = [];
+
+  if (savings > income) {
+    messages.push(
+      `Your monthly savings goal is higher than your income. You can continue, but your safe-to-spend will be ${zeroLabel}.`,
+    );
+  }
+
+  if (bills + savings > income && bills > 0) {
+    messages.push(
+      `Your savings and bills are higher than your income. You can continue, but your safe-to-spend will be ${zeroLabel}.`,
+    );
+  } else if (bills > income) {
+    messages.push(
+      `Your fixed monthly bills are higher than your income. You can continue, but your safe-to-spend will be ${zeroLabel}.`,
+    );
+  }
+
+  return messages;
+}
+
+export function describeOnboardingSafeToSpend(
+  preview: SafeToSpendResult,
+  currency: string,
+): string | null {
+  if (preview.availableMonthlyCents > 0 && preview.recommendedWeeklyCents > 0) return null;
+
+  const zeroLabel = formatMoney(0, currency);
+  const parts: string[] = [];
+  if (preview.fixedBillsCents > 0) {
+    parts.push(`${formatMoney(preview.fixedBillsCents, currency)} in bills`);
+  }
+  if (preview.savingsCents > 0) {
+    parts.push(`${formatMoney(preview.savingsCents, currency)} in savings`);
+  }
+
+  if (parts.length === 0) {
+    return `After your monthly costs, nothing is left for discretionary spending, so your safe-to-spend is ${zeroLabel}.`;
+  }
+
+  return `Your income is fully allocated to ${parts.join(" and ")}. That leaves ${zeroLabel} for safe-to-spend this month (${zeroLabel} per week at this pace).`;
 }
 
 export function calcSafeToSpend(data: OnboardingData): SafeToSpendResult {

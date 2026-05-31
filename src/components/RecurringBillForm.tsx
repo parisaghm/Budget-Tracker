@@ -1,11 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import type { BillFrequency, BillStatus, CategoryDef, RecurringBill } from "@/types/finance";
 import { eurosToCents, getCurrencySymbol } from "@/utils/money";
-import { BILL_FREQUENCY_OPTIONS } from "@/utils/recurringBills";
+import { BILL_FREQUENCY_OPTIONS, getBillSeriesEndDate } from "@/utils/recurringBills";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+function localYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function parseYmdToLocalDate(ymd: string): Date | undefined {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return undefined;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const dt = new Date(y, mo - 1, day);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== day) return undefined;
+  return dt;
+}
+
+const selectTriggerClass =
+  "input-clean h-12 min-h-12 text-base rounded-xl focus:ring-2 focus:ring-ring/30 focus:ring-offset-0";
+const overlayContentClass = "z-[60]";
 
 type BillInput = Omit<RecurringBill, "id" | "userId" | "createdAt" | "updatedAt" | "lastPaidDate" | "amountCents"> & {
   amountCents: number;
@@ -27,6 +50,8 @@ const STATUS_OPTIONS: Array<{ value: BillStatus; label: string }> = [
   { value: "skipped", label: "Skipped" },
 ];
 
+type DurationMode = "ongoing" | "fixed";
+
 export function RecurringBillForm({
   open,
   onOpenChange,
@@ -42,10 +67,25 @@ export function RecurringBillForm({
   const [frequency, setFrequency] = useState<BillFrequency>("monthly");
   const [status, setStatus] = useState<BillStatus>("upcoming");
   const [note, setNote] = useState("");
+  const [durationMode, setDurationMode] = useState<DurationMode>("ongoing");
+  const [paymentCount, setPaymentCount] = useState("5");
   const [isSaving, setIsSaving] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+
+  const selectedDueDate = useMemo(() => parseYmdToLocalDate(dueDate), [dueDate]);
+  const parsedPaymentCount = Number(paymentCount);
+  const seriesEndPreview = useMemo(() => {
+    if (durationMode !== "fixed" || !dueDate || Number.isNaN(parsedPaymentCount) || parsedPaymentCount < 1) {
+      return null;
+    }
+    return getBillSeriesEndDate(dueDate, frequency, Math.floor(parsedPaymentCount));
+  }, [durationMode, dueDate, frequency, parsedPaymentCount]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setDatePickerOpen(false);
+      return;
+    }
     if (editingBill) {
       setName(editingBill.name);
       setAmount((editingBill.amountCents / 100).toFixed(2));
@@ -54,6 +94,8 @@ export function RecurringBillForm({
       setFrequency(editingBill.frequency);
       setStatus(editingBill.status);
       setNote(editingBill.note ?? "");
+      setDurationMode(editingBill.paymentCount ? "fixed" : "ongoing");
+      setPaymentCount(String(editingBill.paymentCount ?? 5));
       return;
     }
     setName("");
@@ -63,11 +105,26 @@ export function RecurringBillForm({
     setFrequency("monthly");
     setStatus("upcoming");
     setNote("");
+    setDurationMode("ongoing");
+    setPaymentCount("5");
   }, [open, editingBill, categories]);
 
   const handleSubmit = async () => {
     const amountNumber = Number(amount);
-    if (!name.trim() || !amount || Number.isNaN(amountNumber) || amountNumber <= 0 || !dueDate) return;
+    const fixedCount =
+      durationMode === "fixed" && !Number.isNaN(parsedPaymentCount)
+        ? Math.floor(parsedPaymentCount)
+        : null;
+    if (
+      !name.trim() ||
+      !amount ||
+      Number.isNaN(amountNumber) ||
+      amountNumber <= 0 ||
+      !dueDate ||
+      (durationMode === "fixed" && (fixedCount == null || fixedCount < 1))
+    ) {
+      return;
+    }
     setIsSaving(true);
     try {
       await Promise.resolve(
@@ -79,6 +136,12 @@ export function RecurringBillForm({
           frequency,
           status,
           nextDueDate: dueDate,
+          seriesStartDate:
+            durationMode === "fixed" && editingBill?.seriesStartDate
+              ? editingBill.seriesStartDate
+              : dueDate,
+          paymentCount: durationMode === "fixed" ? fixedCount! : null,
+          paymentsCompleted: editingBill?.paymentsCompleted ?? 0,
           note: note.trim() || undefined,
           lastPaidDate: status === "paid" ? new Date().toISOString().slice(0, 10) : undefined,
         }),
@@ -133,64 +196,148 @@ export function RecurringBillForm({
             <Label htmlFor="bill-category" className="text-sm font-medium">
               Category
             </Label>
-            <select
-              id="bill-category"
-              className="input-clean min-h-12 text-base"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
-              {categories.map((cat) => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label}
-                </option>
-              ))}
-            </select>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="bill-category" className={selectTriggerClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={overlayContentClass}>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="bill-due-date" className="text-sm font-medium">
               Due date
             </Label>
-            <Input
+            <button
               id="bill-due-date"
-              className="h-12 text-base"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
+              type="button"
+              disabled={isSaving}
+              aria-expanded={datePickerOpen}
+              aria-haspopup="dialog"
+              onClick={() => setDatePickerOpen((open) => !open)}
+              className={cn(
+                selectTriggerClass,
+                "flex w-full items-center justify-between gap-2 text-left font-normal",
+                !dueDate && "text-muted-foreground",
+              )}
+            >
+              <span>
+                {selectedDueDate
+                  ? selectedDueDate.toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                    })
+                  : "Pick a day"}
+              </span>
+              <CalendarIcon className="h-4 w-4 shrink-0 opacity-50" aria-hidden />
+            </button>
+            {datePickerOpen && (
+              <div
+                className="mt-2 w-fit max-w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
+                role="dialog"
+                aria-label="Choose due date"
+              >
+                <Calendar
+                  mode="single"
+                  selected={selectedDueDate}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    setDueDate(localYmd(d));
+                    setDatePickerOpen(false);
+                  }}
+                  defaultMonth={selectedDueDate ?? new Date()}
+                  initialFocus
+                />
+              </div>
+            )}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="bill-frequency" className="text-sm font-medium">
               Repeat frequency
             </Label>
-            <select
-              id="bill-frequency"
-              className="input-clean min-h-12 text-base"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as BillFrequency)}
-            >
-              {BILL_FREQUENCY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select value={frequency} onValueChange={(v) => setFrequency(v as BillFrequency)}>
+              <SelectTrigger id="bill-frequency" className={selectTriggerClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={overlayContentClass}>
+                {BILL_FREQUENCY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="bill-duration" className="text-sm font-medium">
+              How long does this bill run?
+            </Label>
+            <Select value={durationMode} onValueChange={(v) => setDurationMode(v as DurationMode)}>
+              <SelectTrigger id="bill-duration" className={selectTriggerClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={overlayContentClass}>
+                <SelectItem value="ongoing">Keeps going (no end date)</SelectItem>
+                <SelectItem value="fixed">Fixed number of payments</SelectItem>
+              </SelectContent>
+            </Select>
+            {durationMode === "fixed" ? (
+              <div className="grid gap-2 rounded-xl border border-border/70 bg-muted/30 p-3">
+                <Label htmlFor="bill-payment-count" className="text-sm font-medium">
+                  Number of payments
+                </Label>
+                <Input
+                  id="bill-payment-count"
+                  className="h-12 text-base"
+                  type="number"
+                  min={1}
+                  max={240}
+                  inputMode="numeric"
+                  value={paymentCount}
+                  onChange={(e) => setPaymentCount(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {frequency === "monthly"
+                    ? "For monthly bills, 5 payments usually means about five months."
+                    : "Each payment follows your repeat frequency until the count is reached."}
+                  {seriesEndPreview ? (
+                    <>
+                      {" "}
+                      Last payment around{" "}
+                      {parseYmdToLocalDate(seriesEndPreview)?.toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                      .
+                    </>
+                  ) : null}
+                </p>
+              </div>
+            ) : null}
           </div>
           <div className="grid gap-2">
             <Label htmlFor="bill-status" className="text-sm font-medium">
               Payment status
             </Label>
-            <select
-              id="bill-status"
-              className="input-clean min-h-12 text-base"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as BillStatus)}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <Select value={status} onValueChange={(v) => setStatus(v as BillStatus)}>
+              <SelectTrigger id="bill-status" className={selectTriggerClass}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className={overlayContentClass}>
+                {STATUS_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="bill-note" className="text-sm font-medium">
@@ -218,7 +365,12 @@ export function RecurringBillForm({
             type="button"
             className="h-12 w-full touch-manipulation sm:h-10 sm:w-auto"
             onClick={handleSubmit}
-            disabled={isSaving || !name.trim() || !amount}
+            disabled={
+              isSaving ||
+              !name.trim() ||
+              !amount ||
+              (durationMode === "fixed" && (Number.isNaN(parsedPaymentCount) || parsedPaymentCount < 1))
+            }
           >
             {isSaving ? "Saving…" : editingBill ? "Save changes" : "Add bill"}
           </Button>

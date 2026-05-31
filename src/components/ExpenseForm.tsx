@@ -11,6 +11,7 @@ import {
   getTodayDate,
 } from '@/utils/money';
 import { getCategoryIcon, ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 
 type DeleteCategoryResult = { success: true } | { success: false; error: string };
 
@@ -76,6 +77,7 @@ export function ExpenseForm({
   const [isSaving, setIsSaving] = useState(false);
   const [saveAsFavorite, setSaveAsFavorite] = useState(false);
   const [favorites, setFavorites] = useState<FavoriteExpense[]>(readFavorites);
+  const [categoryDeleteTarget, setCategoryDeleteTarget] = useState<CategoryDef | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -247,19 +249,27 @@ export function ExpenseForm({
     setIsAddingCategory(false);
   };
 
-  const handleDeleteCategory = (e: React.MouseEvent, cat: CategoryDef) => {
+  const handleDeleteCategoryClick = (e: React.MouseEvent, cat: CategoryDef) => {
     e.stopPropagation();
     if (!onDeleteCategory || !cat.isCustom) return;
-    if (!confirm(`Remove category "${cat.label}"?`)) return;
+    setCategoryDeleteTarget(cat);
+  };
+
+  const handleDeleteCategoryConfirm = () => {
+    if (!categoryDeleteTarget || !onDeleteCategory) return;
+    const cat = categoryDeleteTarget;
     const result = onDeleteCategory(cat.value);
     if (result.success) {
       if (category === cat.value) setCategory('groceries');
+      setCategoryDeleteTarget(null);
     } else {
       setCategoryError(result.error);
+      setCategoryDeleteTarget(null);
     }
   };
 
   return (
+    <>
     <form
       onSubmit={handleSubmit}
       className="card-elevated animate-slide-up rounded-3xl p-4 sm:rounded-2xl sm:p-6"
@@ -354,7 +364,7 @@ export function ExpenseForm({
                 {cat.isCustom && onDeleteCategory && (
                   <button
                     type="button"
-                    onClick={(e) => handleDeleteCategory(e, cat)}
+                    onClick={(e) => handleDeleteCategoryClick(e, cat)}
                     aria-label="Delete category"
                     className="absolute right-1 top-1 flex h-9 w-9 items-center justify-center rounded-lg bg-background/40 text-muted-foreground opacity-100 transition-opacity hover:bg-destructive/20 hover:text-destructive md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100"
                   >
@@ -515,5 +525,16 @@ export function ExpenseForm({
         </div>
       </div>
     </form>
+    <DeleteConfirmDialog
+      open={categoryDeleteTarget !== null}
+      onOpenChange={(open) => !open && setCategoryDeleteTarget(null)}
+      title="Delete category?"
+      description="This removes the custom category permanently. Expenses using it will need another category."
+      detail={categoryDeleteTarget?.label}
+      onConfirm={handleDeleteCategoryConfirm}
+      confirmLabel="Delete"
+      confirmingLabel="Deleting…"
+    />
+    </>
   );
 }

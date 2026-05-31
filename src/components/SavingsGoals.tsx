@@ -6,6 +6,8 @@ import { formatMoney, eurosToCents, centsToEuros, getCurrencySymbol } from '@/ut
 import { calculateGoalPlan } from '@/utils/goalPlan';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -46,8 +48,25 @@ export function SavingsGoals({
   const [editTarget, setEditTarget] = useState('');
   const [editTargetDate, setEditTargetDate] = useState('');
   const [contributeAmount, setContributeAmount] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<SavingsGoalType | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const suggestedContribution = Math.min(50000, Math.max(0, remainingCents)); // €500 or remaining, whichever is less (cents)
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await Promise.resolve(onDeleteGoal(deleteTarget.id));
+      toast.success('Goal deleted');
+      setDeleteTarget(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not delete goal';
+      toast.error('Delete failed', { description: message });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleAddGoal = () => {
     const name = newGoalName.trim();
@@ -188,10 +207,9 @@ export function SavingsGoals({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        if (confirm(`Delete goal "${goal.name}"?`)) onDeleteGoal(goal.id);
-                      }}
+                      onClick={() => setDeleteTarget(goal)}
                       title="Delete goal"
+                      aria-label={`Delete goal ${goal.name}`}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -363,6 +381,16 @@ export function SavingsGoals({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+        title="Delete goal?"
+        description="This removes the savings goal permanently. This action cannot be undone."
+        detail={deleteTarget?.name}
+        onConfirm={handleDeleteConfirm}
+        isConfirming={isDeleting}
+      />
     </div>
   );
 }

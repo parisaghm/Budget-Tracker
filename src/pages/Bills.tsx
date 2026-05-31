@@ -7,8 +7,15 @@ import { toast } from "sonner";
 import type { RecurringBill } from "@/types/finance";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { formatMoney } from "@/utils/money";
-import { BILL_FREQUENCY_OPTIONS, getDaysUntil } from "@/utils/recurringBills";
+import {
+  BILL_FREQUENCY_OPTIONS,
+  formatBillDueDateLabel,
+  formatBillSeriesSummary,
+  getDaysUntil,
+  isBillSeriesActive,
+} from "@/utils/recurringBills";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { RecurringBillForm } from "@/components/RecurringBillForm";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
@@ -32,6 +39,8 @@ export default function BillsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<RecurringBill | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RecurringBill | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const sortedBills = useMemo(
     () => [...recurringBills].sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate)),
@@ -48,6 +57,22 @@ export default function BillsPage() {
   }, [sortedBills]);
 
   const activeCurrency = budget?.currency ?? "EUR";
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteRecurringBill(deleteTarget.id);
+      toast.success("Bill deleted");
+      setDeleteTarget(null);
+    } catch (error) {
+      toast.error("Could not delete bill", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleAddOrUpdate = async (payload: Parameters<typeof addRecurringBill>[0]) => {
     try {
@@ -109,7 +134,7 @@ export default function BillsPage() {
           </div>
         </header>
 
-        <main className="container max-w-6xl space-y-4 px-4 pb-mobile-nav pt-5 sm:px-6 sm:pt-8 md:pb-10 lg:px-8">
+        <main className="container max-w-6xl space-y-4 px-4 pb-mobile-nav pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pb-10 md:pr-6 lg:px-8">
           <div className="flex gap-2">
             <Button
               type="button"
@@ -149,10 +174,15 @@ export default function BillsPage() {
                   <div className="min-w-0">
                     <p className="text-base font-semibold text-foreground">{bill.name}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {format(new Date(bill.nextDueDate), "MMM d, yyyy")} · {frequencyLabelMap[bill.frequency]} · {bill.status}
+                      {formatBillDueDateLabel(bill.nextDueDate, "MMM d, yyyy")} · {frequencyLabelMap[bill.frequency]} · {bill.status}
                     </p>
+                    {formatBillSeriesSummary(bill) ? (
+                      <p className="mt-1 text-xs text-muted-foreground">{formatBillSeriesSummary(bill)}</p>
+                    ) : null}
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Due in {Math.max(0, getDaysUntil(bill.nextDueDate))} day{Math.max(0, getDaysUntil(bill.nextDueDate)) === 1 ? "" : "s"}
+                      {isBillSeriesActive(bill)
+                        ? `Due in ${Math.max(0, getDaysUntil(bill.nextDueDate))} day${Math.max(0, getDaysUntil(bill.nextDueDate)) === 1 ? "" : "s"}`
+                        : "Series complete"}
                     </p>
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
@@ -160,23 +190,32 @@ export default function BillsPage() {
                       {formatMoney(bill.amountCents, activeCurrency)}
                     </span>
                     <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-12 w-full touch-manipulation sm:h-9 sm:w-auto"
-                      onClick={async () => {
-                        try {
-                          await markRecurringBillPaid(bill.id);
-                          toast.success("Bill marked as paid and expense added");
-                        } catch (error) {
-                          toast.error("Could not mark bill as paid", {
-                            description: error instanceof Error ? error.message : "Please try again.",
-                          });
-                        }
-                      }}
-                    >
-                      Mark as paid
-                    </Button>
+                    {isBillSeriesActive(bill) ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-12 w-full touch-manipulation sm:h-9 sm:w-auto"
+                        onClick={async () => {
+                          try {
+                            await markRecurringBillPaid(bill.id);
+                            const remaining = bill.paymentCount
+                              ? Math.max(0, bill.paymentCount - (bill.paymentsCompleted ?? 0) - 1)
+                              : null;
+                            toast.success(
+                              remaining === 0
+                                ? "Final payment recorded — bill series complete"
+                                : "Bill marked as paid and expense added",
+                            );
+                          } catch (error) {
+                            toast.error("Could not mark bill as paid", {
+                              description: error instanceof Error ? error.message : "Please try again.",
+                            });
+                          }
+                        }}
+                      >
+                        Mark as paid
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       variant="outline"
@@ -193,17 +232,7 @@ export default function BillsPage() {
                       type="button"
                       variant="ghost"
                       className="h-12 w-full touch-manipulation sm:h-9 sm:w-auto"
-                      onClick={async () => {
-                        if (!confirm(`Delete "${bill.name}"?`)) return;
-                        try {
-                          await deleteRecurringBill(bill.id);
-                          toast.success("Bill deleted");
-                        } catch (error) {
-                          toast.error("Could not delete bill", {
-                            description: error instanceof Error ? error.message : "Please try again.",
-                          });
-                        }
-                      }}
+                      onClick={() => setDeleteTarget(bill)}
                     >
                       Delete
                     </Button>
@@ -216,7 +245,7 @@ export default function BillsPage() {
             <div className="space-y-4">
               {groupedByDate.map(([date, bills]) => (
                 <div key={date} className="card-elevated p-4">
-                  <h3 className="font-semibold mb-3">{format(new Date(date), "EEEE, MMM d")}</h3>
+                  <h3 className="font-semibold mb-3">{formatBillDueDateLabel(date, "EEEE, MMM d")}</h3>
                   <div className="space-y-2">
                     {bills.map((bill) => (
                       <div key={bill.id} className="rounded-lg bg-muted px-3 py-2 flex items-center justify-between gap-2">
@@ -251,6 +280,21 @@ export default function BillsPage() {
         currency={activeCurrency}
         editingBill={editingBill}
         onSubmit={handleAddOrUpdate}
+      />
+      <DeleteConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && !isDeleting && setDeleteTarget(null)}
+        title="Delete bill?"
+        description="This removes the recurring bill permanently. This action cannot be undone."
+        detail={
+          deleteTarget ? (
+            <>
+              {deleteTarget.name} · {formatMoney(deleteTarget.amountCents, activeCurrency)}
+            </>
+          ) : undefined
+        }
+        onConfirm={handleDeleteConfirm}
+        isConfirming={isDeleting}
       />
     </>
   );

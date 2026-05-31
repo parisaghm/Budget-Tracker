@@ -9,13 +9,17 @@ export default {
       center: true,
       padding: "1.5rem",
       screens: {
-        "2xl": "1200px",
+        "2xl": "1400px",
       },
     },
     extend: {
+      maxWidth: {
+        "8xl": "90rem",
+      },
       fontFamily: {
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Source Serif Pro', 'Georgia', 'Times New Roman', 'serif'],
+        mono: ['ui-monospace', 'Cascadia Code', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",

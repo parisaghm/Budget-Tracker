@@ -1,5 +1,6 @@
 import { addDays, differenceInCalendarDays, endOfWeek, isWithinInterval, parseISO, startOfDay, startOfWeek } from "date-fns";
 import type { Expense, RecurringBill, SavingsGoal } from "@/types/finance";
+import { isBillSeriesActive, parseBillDueDate } from "@/utils/recurringBills";
 import { calculateGoalPlan } from "@/utils/goalPlan";
 
 export interface WeeklyGoalCheck {
@@ -98,9 +99,9 @@ export function buildWeeklyReviewData(params: {
 
   const nextSevenDays = addDays(startOfDay(today), 7);
   const upcomingBills = recurringBills
-    .filter((bill) => bill.status === "upcoming")
+    .filter((bill) => bill.status === "upcoming" && isBillSeriesActive(bill))
     .filter((bill) => {
-      const due = parseISO(bill.nextDueDate);
+      const due = parseBillDueDate(bill.nextDueDate);
       return isWithinInterval(due, { start: startOfDay(today), end: nextSevenDays });
     })
     .sort((a, b) => a.nextDueDate.localeCompare(b.nextDueDate));

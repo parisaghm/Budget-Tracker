@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Category, CategoryDef, Expense } from '@/types/finance';
 import {
@@ -215,29 +214,34 @@ export function EditExpenseModal({
               <label className="text-xs text-muted-foreground uppercase tracking-wider font-medium block mb-2">
                 Date
               </label>
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen} modal={false}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    disabled={isSaving}
-                    className={cn(
-                      'input-clean w-full flex items-center justify-between gap-2 text-left font-normal min-h-[2.75rem]',
-                      !date && 'text-muted-foreground',
-                    )}
-                  >
-                    <span>
-                      {selectedCalendarDate
-                        ? selectedCalendarDate.toLocaleDateString(undefined, {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                          })
-                        : 'Pick a day'}
-                    </span>
-                    <CalendarIcon className="h-4 w-4 shrink-0 opacity-50" aria-hidden />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+              <button
+                type="button"
+                disabled={isSaving}
+                aria-expanded={datePickerOpen}
+                aria-haspopup="dialog"
+                onClick={() => setDatePickerOpen((open) => !open)}
+                className={cn(
+                  'input-clean w-full flex items-center justify-between gap-2 text-left font-normal min-h-[2.75rem]',
+                  !date && 'text-muted-foreground',
+                )}
+              >
+                <span>
+                  {selectedCalendarDate
+                    ? selectedCalendarDate.toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                      })
+                    : 'Pick a day'}
+                </span>
+                <CalendarIcon className="h-4 w-4 shrink-0 opacity-50" aria-hidden />
+              </button>
+              {datePickerOpen && (
+                <div
+                  className="mt-2 w-fit max-w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
+                  role="dialog"
+                  aria-label="Choose date"
+                >
                   <Calendar
                     mode="single"
                     selected={selectedCalendarDate}
@@ -249,8 +253,8 @@ export function EditExpenseModal({
                     defaultMonth={selectedCalendarDate ?? scopedMonthStart}
                     initialFocus
                   />
-                </PopoverContent>
-              </Popover>
+                </div>
+              )}
             </div>
 
             <div>

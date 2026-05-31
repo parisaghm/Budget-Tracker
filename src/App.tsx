@@ -26,6 +26,9 @@ const OnboardingPage = lazy(() => import("./pages/Onboarding"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const BillsPage = lazy(() => import("./pages/Bills"));
 const WeeklyReviewPage = lazy(() => import("./pages/WeeklyReview"));
+const BudgetPage = lazy(() => import("./pages/Budget"));
+const ExpensesPage = lazy(() => import("./pages/Expenses"));
+const GoalsPage = lazy(() => import("./pages/Goals"));
 
 const queryClient = new QueryClient();
 
@@ -79,6 +82,36 @@ const App = () => (
                       <ProtectedRoute>
                         <RequireOnboarding>
                           <SettingsPage />
+                        </RequireOnboarding>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/budget"
+                    element={
+                      <ProtectedRoute>
+                        <RequireOnboarding>
+                          <BudgetPage />
+                        </RequireOnboarding>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/expenses"
+                    element={
+                      <ProtectedRoute>
+                        <RequireOnboarding>
+                          <ExpensesPage />
+                        </RequireOnboarding>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/goals"
+                    element={
+                      <ProtectedRoute>
+                        <RequireOnboarding>
+                          <GoalsPage />
                         </RequireOnboarding>
                       </ProtectedRoute>
                     }

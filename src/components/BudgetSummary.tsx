@@ -1,17 +1,30 @@
 import type { ReactNode } from 'react';
-import { Pencil, TrendingDown, TrendingUp } from 'lucide-react';
-import { formatMoney, calculateSpentPercentage } from '@/utils/money';
+import { useEffect, useMemo, useState } from 'react';
+import { Check, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  centsToEuros,
+  eurosToCents,
+  formatMoney,
+  calculateSpentPercentage,
+  getCurrencySymbol,
+} from '@/utils/money';
 import { AnimatedMoney } from '@/components/AnimatedMoney';
+import { describeDashboardSafeToSpend, type SafeToSpendBreakdown } from '@/utils/safeToSpend';
 
 interface BudgetSummaryProps {
   salaryCents: number;
   totalSpentCents: number;
   remainingCents: number;
   currency?: string;
-  /** Opens monthly salary editing. */
-  onEditSalary?: () => void;
+  /** Optional: adjust displayed safe-to-spend via plan changes (never monthly income). */
+  onSaveSafeToSpend?: (remainingCents: number) => void;
   /** Monthly salary + note inputs rendered above the safe-to-spend hero. */
   salaryControls?: ReactNode;
+  /** Used to explain zero or negative safe-to-spend. */
+  safeToSpendBreakdown?: SafeToSpendBreakdown;
+  /** Home view: hero only, no progress row or income/spent tiles. */
+  variant?: "default" | "compact";
+  weeklySafeToSpendCents?: number;
 }
 
 export function BudgetSummary({
@@ -19,12 +32,49 @@ export function BudgetSummary({
   totalSpentCents,
   remainingCents,
   currency = 'EUR',
-  onEditSalary,
+  onSaveSafeToSpend,
   salaryControls,
+  safeToSpendBreakdown,
+  variant = 'default',
+  weeklySafeToSpendCents,
 }: BudgetSummaryProps) {
+  const isCompact = variant === 'compact';
   const spentPercentage = calculateSpentPercentage(totalSpentCents, salaryCents);
   const isOverBudget = remainingCents < 0;
   const isWarning = spentPercentage > 75 && !isOverBudget;
+  const [isEditingAmount, setIsEditingAmount] = useState(false);
+  const [editAmount, setEditAmount] = useState('');
+
+  const safeToSpendExplanation = useMemo(() => {
+    if (!safeToSpendBreakdown) return null;
+    return describeDashboardSafeToSpend(remainingCents, safeToSpendBreakdown, currency);
+  }, [currency, remainingCents, safeToSpendBreakdown]);
+
+  useEffect(() => {
+    if (!isEditingAmount) return;
+    setEditAmount(centsToEuros(remainingCents).toString());
+  }, [isEditingAmount, remainingCents]);
+
+  const startEditing = () => {
+    if (!onSaveSafeToSpend) return;
+    setEditAmount(centsToEuros(remainingCents).toString());
+    setIsEditingAmount(true);
+  };
+
+  const handleSaveAmount = () => {
+    const value = parseFloat(editAmount);
+    if (!isNaN(value) && onSaveSafeToSpend) {
+      onSaveSafeToSpend(eurosToCents(value));
+      setIsEditingAmount(false);
+    }
+  };
+
+  const handleAmountKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleSaveAmount();
+    if (e.key === 'Escape') setIsEditingAmount(false);
+  };
+
+  const canEditAmount = Boolean(onSaveSafeToSpend);
 
   return (
     <div className="card-elevated animate-fade-in space-y-5 p-5 sm:p-6 sm:space-y-6">
@@ -34,35 +84,88 @@ export function BudgetSummary({
 
       {/* Remaining - Hero display */}
       <div className="py-1 text-center sm:py-2">
-        <div className="mb-2 flex items-center justify-center gap-2">
-          <p className="text-[13px] font-medium uppercase tracking-[0.2em] text-muted-foreground sm:text-xs sm:tracking-wider">
+        {canEditAmount ? (
+          <button
+            type="button"
+            onClick={startEditing}
+            disabled={isEditingAmount}
+            className="mb-2 block w-full text-[13px] font-medium uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default sm:text-xs sm:tracking-wider"
+            aria-label="Edit safe to spend"
+          >
+            Safe to spend
+          </button>
+        ) : (
+          <p className="mb-2 text-[13px] font-medium uppercase tracking-[0.2em] text-muted-foreground sm:text-xs sm:tracking-wider">
             Safe to spend
           </p>
-          {onEditSalary && (
+        )}
+        {isEditingAmount ? (
+          <div className="mx-auto flex max-w-xs items-end justify-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-muted-foreground">
+                {getCurrencySymbol(currency)}
+              </span>
+              <input
+                type="number"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                onKeyDown={handleAmountKeyDown}
+                className="input-clean money-display h-14 w-full pl-9 pr-3 text-center text-[clamp(1.75rem,6vw,2.5rem)] font-bold"
+                autoFocus
+                aria-label="Safe to spend amount"
+              />
+            </div>
             <button
               type="button"
-              onClick={onEditSalary}
-              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Edit monthly salary"
-              title="Edit monthly salary"
+              onClick={handleSaveAmount}
+              disabled={!editAmount || Number.isNaN(parseFloat(editAmount))}
+              className="btn-primary h-14 w-14 shrink-0 p-0"
+              aria-label="Save safe to spend"
             >
-              <Pencil className="h-4 w-4" aria-hidden />
+              <Check className="h-5 w-5" aria-hidden />
             </button>
-          )}
-        </div>
-        <AnimatedMoney
-          cents={remainingCents}
-          className={`money-display inline-block align-middle text-[clamp(2.25rem,8vw,3.75rem)] font-bold leading-none md:text-6xl ${
-            isOverBudget ? 'text-destructive' : isWarning ? 'text-warning' : 'text-foreground'
-          }`}
-        />
-        {isOverBudget && (
+          </div>
+        ) : canEditAmount ? (
+          <button
+            type="button"
+            onClick={startEditing}
+            className={`money-display inline-block align-middle rounded-xl px-2 py-1 text-[clamp(2.25rem,8vw,3.75rem)] font-bold leading-none transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-6xl ${
+              isOverBudget ? 'text-destructive' : isWarning ? 'text-warning' : 'text-foreground'
+            }`}
+            aria-label={`Edit safe to spend, currently ${formatMoney(remainingCents, currency)}`}
+          >
+            <AnimatedMoney
+              cents={remainingCents}
+              className={isOverBudget ? 'text-destructive' : isWarning ? 'text-warning' : 'text-foreground'}
+            />
+          </button>
+        ) : (
+          <AnimatedMoney
+            cents={remainingCents}
+            className={`money-display inline-block align-middle text-[clamp(2.25rem,8vw,3.75rem)] font-bold leading-none md:text-6xl ${
+              isOverBudget ? 'text-destructive' : isWarning ? 'text-warning' : 'text-foreground'
+            }`}
+          />
+        )}
+        {isOverBudget && !safeToSpendExplanation && (
           <p className="text-sm text-destructive mt-2 font-semibold">
-            Over budget by {formatMoney(Math.abs(remainingCents))}
+            Over budget by {formatMoney(Math.abs(remainingCents), currency)}
           </p>
         )}
+        {safeToSpendExplanation ? (
+          <p className={`mt-2 max-w-md mx-auto text-sm leading-relaxed ${isOverBudget ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {safeToSpendExplanation}
+          </p>
+        ) : null}
+        {isCompact && weeklySafeToSpendCents != null && weeklySafeToSpendCents > 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            About {formatMoney(weeklySafeToSpendCents, currency)} per week left this month
+          </p>
+        ) : null}
       </div>
 
+      {isCompact ? null : (
+      <>
       {/* Progress bar */}
       <div>
         <div className="mb-2.5 flex justify-between text-sm sm:text-sm">
@@ -120,6 +223,8 @@ export function BudgetSummary({
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

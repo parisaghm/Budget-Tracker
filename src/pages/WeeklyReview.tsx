@@ -114,7 +114,7 @@ export default function WeeklyReviewPage() {
           </div>
         </header>
 
-        <main className="container max-w-6xl px-4 pb-mobile-nav pt-5 sm:px-6 sm:pt-8 md:pb-10 lg:px-8">
+        <main className="container max-w-6xl px-4 pb-mobile-nav pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pb-10 md:pr-6 lg:px-8">
           {!hasEnoughData ? (
             <div className="card-elevated p-8 text-center">
               <h2 className="text-xl font-semibold text-foreground mb-2">Not enough data yet</h2>

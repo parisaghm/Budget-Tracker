@@ -26,7 +26,12 @@ import {
 import { DEFAULT_CATEGORY_ICON_KEY, inferIconKeyFromLabel } from "@/utils/categoryIcons";
 import { getCurrentMonth, getPreviousMonth, normalizeCurrencyCode, normalizeYearMonthYm } from "@/utils/money";
 import { calculateGoalPlan } from "@/utils/goalPlan";
-import { getNextDateForFrequency, getUpcomingBills, normalizeStoredBillNextDueDate } from "@/utils/recurringBills";
+import {
+  formatSupabaseDateCellToIso,
+  getNextDateForFrequency,
+  getUpcomingBills,
+  normalizeStoredBillNextDueDate,
+} from "@/utils/recurringBills";
 import { hasSupabaseEnv, supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useDemo } from "@/context/DemoContext";
@@ -39,6 +44,20 @@ import {
   ONBOARDING_MONTHLY_SAVINGS_GOAL_NAME,
   onboardingFixedBillAlreadyExists,
 } from "@/utils/onboarding";
+import type { IncomeCycle } from "@/types/incomeCycle";
+import {
+  getActiveCycleWindow,
+  getDefaultNextIncomeDateForMonth,
+  isIncomeCycleConfigured,
+} from "@/utils/incomeCycle";
+import { readIncomeCycle, writeIncomeCycle } from "@/utils/incomeCyclePreferences";
+import {
+  canWriteMonthlyIncome,
+  runWithIncomeWrite,
+  warnBlockedIncomeWrite,
+  type IncomeWriteSource,
+} from "@/utils/budgetIncomeGuard";
+import { computeSafeToSpendCents } from "@/utils/safeToSpend";
 
 interface StoredData {
   budgets: Record<string, BudgetMonth>;
@@ -110,6 +129,9 @@ interface RecurringBillRow {
   status: BillStatus;
   last_paid_date: string | null;
   next_due_date: string;
+  series_start_date: string | null;
+  payment_count: number | null;
+  payments_completed: number | null;
   note: string | null;
   created_at: string;
   updated_at: string;
@@ -176,7 +198,7 @@ function readRecurringBillsFromLocal(userId: string): RecurringBill[] {
     const bills = Array.isArray(parsed) ? (parsed as RecurringBill[]) : [];
     return bills.map((b) => ({
       ...b,
-      nextDueDate: normalizeStoredBillNextDueDate(b.nextDueDate, b.dueDay),
+      nextDueDate: normalizeStoredBillNextDueDate(b.nextDueDate, b.dueDay, new Date(), b.seriesStartDate),
     }));
   } catch {
     return [];
@@ -189,6 +211,76 @@ function writeRecurringBillsToLocal(userId: string, bills: RecurringBill[]): voi
   } catch {
     // Ignore storage write failures.
   }
+}
+
+function categoryLimitsStorageKey(userId: string): string {
+  return `bt_category_limits_${userId}`;
+}
+
+function readCategoryLimitsFromLocal(userId: string): CategoryLimitsByMonth {
+  try {
+    const raw = window.localStorage.getItem(categoryLimitsStorageKey(userId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as CategoryLimitsByMonth;
+  } catch {
+    return {};
+  }
+}
+
+function writeCategoryLimitsToLocal(userId: string, limits: CategoryLimitsByMonth): void {
+  try {
+    window.localStorage.setItem(categoryLimitsStorageKey(userId), JSON.stringify(limits));
+  } catch {
+    // Ignore storage write failures.
+  }
+}
+
+function mergeCategoryLimits(
+  remote: CategoryLimitsByMonth,
+  local: CategoryLimitsByMonth,
+): CategoryLimitsByMonth {
+  const merged: CategoryLimitsByMonth = { ...local };
+  for (const [month, limits] of Object.entries(remote)) {
+    merged[month] = { ...(merged[month] ?? {}), ...limits };
+  }
+  return merged;
+}
+
+function parseLimitCents(value: unknown): number | null {
+  if (value == null) return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function applyCategoryLimitUpdate(
+  prev: StoredData,
+  month: string,
+  categoryValue: string,
+  limitCents: number,
+): { nextData: StoredData; nextCategoryLimits: CategoryLimitsByMonth } {
+  const monthLimits = prev.categoryLimits[month] || {};
+  const next = { ...monthLimits, [categoryValue]: limitCents };
+  if (limitCents <= 0) {
+    const { [categoryValue]: _removed, ...rest } = next;
+    const nextCategoryLimits = {
+      ...prev.categoryLimits,
+      [month]: rest,
+    };
+    return {
+      nextData: { ...prev, categoryLimits: nextCategoryLimits },
+      nextCategoryLimits,
+    };
+  }
+  const nextCategoryLimits = {
+    ...prev.categoryLimits,
+    [month]: next,
+  };
+  return {
+    nextData: { ...prev, categoryLimits: nextCategoryLimits },
+    nextCategoryLimits,
+  };
 }
 
 function isRecurringBillsSchemaError(message?: string): boolean {
@@ -221,8 +313,27 @@ function useFinanceDataInternal() {
   const [isLoading, setIsLoading] = useState(true);
   const [useRecurringBillsLocalFallback, setUseRecurringBillsLocalFallback] = useState(false);
   const [pendingExpenses, setPendingExpenses] = useState<PendingExpenseItem[]>([]);
+  const financeUserId = user?.id ?? (isDemoMode ? "demo" : "");
+  const [incomeCycle, setIncomeCycle] = useState<IncomeCycle | null>(() =>
+    readIncomeCycle(financeUserId || undefined),
+  );
   /** Discards stale `loadFromSupabase` results when a newer load started (e.g. onboarding sync vs initial fetch). */
   const financeLoadGenerationRef = useRef(0);
+
+  useEffect(() => {
+    setIncomeCycle(readIncomeCycle(financeUserId || undefined));
+  }, [financeUserId]);
+
+  const saveIncomeCycle = useCallback(
+    (next: IncomeCycle | null) => {
+      const normalized = next && isIncomeCycleConfigured(next) ? next : null;
+      setIncomeCycle(normalized);
+      if (financeUserId) {
+        writeIncomeCycle(financeUserId, normalized);
+      }
+    },
+    [financeUserId],
+  );
 
   useEffect(() => {
     writeCurrentMonthToLocalStorage(currentMonth);
@@ -312,11 +423,14 @@ function useFinanceDataInternal() {
             });
           }
 
-          if (row.month && typeof row.limit_cents === "number") {
+          const limitCents = parseLimitCents(row.limit_cents);
+          if (row.month && limitCents != null && limitCents > 0) {
             categoryLimits[row.month] = categoryLimits[row.month] ?? {};
-            categoryLimits[row.month][row.value] = row.limit_cents;
+            categoryLimits[row.month][row.value] = limitCents;
           }
         });
+
+        const localCategoryLimits = readCategoryLimitsFromLocal(userId);
 
         const savingsGoals: SavingsGoal[] = (((goalsRes.data as GoalRow[] | null) ?? []).map((row) => ({
           id: row.id,
@@ -339,7 +453,15 @@ function useFinanceDataInternal() {
             frequency: row.frequency,
             status: row.status,
             lastPaidDate: row.last_paid_date ?? undefined,
-            nextDueDate: normalizeStoredBillNextDueDate(row.next_due_date, row.due_day),
+            nextDueDate: normalizeStoredBillNextDueDate(
+              row.next_due_date,
+              row.due_day,
+              new Date(),
+              formatSupabaseDateCellToIso(row.series_start_date),
+            ),
+            seriesStartDate: formatSupabaseDateCellToIso(row.series_start_date) ?? undefined,
+            paymentCount: row.payment_count ?? undefined,
+            paymentsCompleted: row.payments_completed ?? 0,
             note: row.note ?? undefined,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
@@ -384,7 +506,7 @@ function useFinanceDataInternal() {
           expenses: [...expenses, ...pendingAsExpenses],
           customCategories,
           savingsGoals,
-          categoryLimits,
+          categoryLimits: mergeCategoryLimits(categoryLimits, localCategoryLimits),
           recurringBills,
         });
         if (import.meta.env.DEV) {
@@ -417,6 +539,7 @@ function useFinanceDataInternal() {
       setData({
         ...initialData,
         recurringBills: readRecurringBillsFromLocal(user.id),
+        categoryLimits: readCategoryLimitsFromLocal(user.id),
       });
       setIsLoading(false);
       if (import.meta.env.DEV) {
@@ -551,12 +674,28 @@ function useFinanceDataInternal() {
   const currentMonthData = getMonthData(currentMonth);
 
   const updateMonthlyIncome = useCallback(
-    async (month: string, salaryCents: number, incomeNote?: string, currencyOverride?: string) => {
+    async (
+      month: string,
+      salaryCents: number,
+      incomeNote?: string,
+      currencyOverride?: string,
+      meta?: { source?: IncomeWriteSource },
+    ) => {
       if (isDemoMode) {
         toast.info("Sample budget", { description: DEMO_EDIT_MESSAGE });
         return;
       }
       if (!user) return;
+
+      const existingSalaryCents = data.budgets[month]?.salaryCents ?? 0;
+      const isCurrencyOnly = meta?.source === "currency_only";
+      if (!isCurrencyOnly && !canWriteMonthlyIncome(meta?.source)) {
+        salaryCents = warnBlockedIncomeWrite(
+          meta?.source ?? "updateMonthlyIncome",
+          salaryCents,
+          existingSalaryCents,
+        );
+      }
 
       let dbId: string | null = null;
       let dbCurrency: string | null = null;
@@ -628,7 +767,7 @@ function useFinanceDataInternal() {
         throw new Error(incomeUpsert.error.message);
       }
     },
-    [isDemoMode, user],
+    [data.budgets, isDemoMode, user],
   );
 
   const setCurrency = useCallback(
@@ -644,6 +783,7 @@ function useFinanceDataInternal() {
         budget?.salaryCents ?? 0,
         budget?.incomeNote,
         currency,
+        { source: "currency_only" },
       );
     },
     [currentMonth, data.budgets, isDemoMode, updateMonthlyIncome, user],
@@ -651,7 +791,11 @@ function useFinanceDataInternal() {
 
   const setSalary = useCallback(
     async (salaryCents: number, incomeNote?: string) => {
-      await updateMonthlyIncome(currentMonth, salaryCents, incomeNote);
+      await runWithIncomeWrite("user_edit", () =>
+        updateMonthlyIncome(currentMonth, salaryCents, incomeNote, undefined, {
+          source: "user_edit",
+        }),
+      );
     },
     [currentMonth, updateMonthlyIncome],
   );
@@ -992,6 +1136,9 @@ function useFinanceDataInternal() {
         status: newBill.status,
         last_paid_date: newBill.lastPaidDate ?? null,
         next_due_date: newBill.nextDueDate,
+        series_start_date: newBill.seriesStartDate ?? newBill.nextDueDate,
+        payment_count: newBill.paymentCount ?? null,
+        payments_completed: newBill.paymentsCompleted ?? 0,
         note: newBill.note?.trim() ? newBill.note : null,
       });
 
@@ -1043,7 +1190,21 @@ function useFinanceDataInternal() {
     async (
       billId: string,
       updates: Partial<
-        Pick<RecurringBill, "name" | "amountCents" | "category" | "dueDay" | "frequency" | "status" | "nextDueDate" | "note" | "lastPaidDate">
+        Pick<
+          RecurringBill,
+          | "name"
+          | "amountCents"
+          | "category"
+          | "dueDay"
+          | "frequency"
+          | "status"
+          | "nextDueDate"
+          | "seriesStartDate"
+          | "paymentCount"
+          | "paymentsCompleted"
+          | "note"
+          | "lastPaidDate"
+        >
       >,
     ) => {
       if (isDemoMode) {
@@ -1072,6 +1233,9 @@ function useFinanceDataInternal() {
       if (updates.frequency !== undefined) patch.frequency = updates.frequency;
       if (updates.status !== undefined) patch.status = updates.status;
       if (updates.nextDueDate !== undefined) patch.next_due_date = updates.nextDueDate;
+      if (updates.seriesStartDate !== undefined) patch.series_start_date = updates.seriesStartDate ?? null;
+      if (updates.paymentCount !== undefined) patch.payment_count = updates.paymentCount ?? null;
+      if (updates.paymentsCompleted !== undefined) patch.payments_completed = updates.paymentsCompleted;
       if (updates.lastPaidDate !== undefined) patch.last_paid_date = updates.lastPaidDate;
       if (updates.note !== undefined) patch.note = updates.note?.trim() ? updates.note : null;
       patch.updated_at = new Date().toISOString();
@@ -1121,31 +1285,27 @@ function useFinanceDataInternal() {
       if (!user) {
         throw new Error("Not authenticated");
       }
-      if (useRecurringBillsLocalFallback) {
+      const removeBillFromState = () => {
         setData((prev) => {
           const nextBills = prev.recurringBills.filter((bill) => bill.id !== billId);
           writeRecurringBillsToLocal(user.id, nextBills);
           return { ...prev, recurringBills: nextBills };
         });
+      };
+      if (!hasSupabaseEnv || useRecurringBillsLocalFallback) {
+        removeBillFromState();
         return;
       }
       const { error } = await supabase.from("recurring_bills").delete().eq("id", billId).eq("user_id", user.id);
       if (error) {
         if (isRecurringBillsSchemaError(error.message)) {
           setUseRecurringBillsLocalFallback(true);
-          setData((prev) => {
-            const nextBills = prev.recurringBills.filter((bill) => bill.id !== billId);
-            writeRecurringBillsToLocal(user.id, nextBills);
-            return { ...prev, recurringBills: nextBills };
-          });
+          removeBillFromState();
           return;
         }
         throw new Error(error.message);
       }
-      setData((prev) => ({
-        ...prev,
-        recurringBills: prev.recurringBills.filter((bill) => bill.id !== billId),
-      }));
+      removeBillFromState();
     },
     [isDemoMode, useRecurringBillsLocalFallback, user],
   );
@@ -1170,7 +1330,13 @@ function useFinanceDataInternal() {
         note: `Paid recurring bill: ${bill.name}${bill.note ? ` — ${bill.note}` : ""}`,
       });
 
-      const nextDueDate = getNextDateForFrequency(bill.nextDueDate, bill.frequency);
+      const nextPaymentsCompleted = (bill.paymentsCompleted ?? 0) + 1;
+      const seriesComplete =
+        bill.paymentCount != null && nextPaymentsCompleted >= bill.paymentCount;
+      const nextDueDate = seriesComplete
+        ? bill.nextDueDate
+        : getNextDateForFrequency(bill.nextDueDate, bill.frequency);
+      const nextStatus: BillStatus = seriesComplete ? "skipped" : "upcoming";
       const now = new Date().toISOString();
       const today = now.slice(0, 10);
       let shouldPersistLocal = useRecurringBillsLocalFallback;
@@ -1179,9 +1345,10 @@ function useFinanceDataInternal() {
         const { error } = await supabase
           .from("recurring_bills")
           .update({
-            status: "upcoming",
+            status: nextStatus,
             last_paid_date: today,
             next_due_date: nextDueDate,
+            payments_completed: nextPaymentsCompleted,
             updated_at: now,
           })
           .eq("id", billId)
@@ -1204,16 +1371,15 @@ function useFinanceDataInternal() {
             item.id === billId
               ? {
                   ...item,
-                  status: "upcoming",
+                  status: nextStatus,
                   lastPaidDate: today,
                   nextDueDate,
+                  paymentsCompleted: nextPaymentsCompleted,
                   updatedAt: now,
                 }
               : item,
           );
-          if (shouldPersistLocal) {
-            writeRecurringBillsToLocal(user.id, nextBills);
-          }
+          writeRecurringBillsToLocal(user.id, nextBills);
           return nextBills;
         })(),
       }));
@@ -1306,65 +1472,152 @@ function useFinanceDataInternal() {
 
   const setCategoryLimit = useCallback(
     (categoryValue: string, limitCents: number) => {
-      if (isDemoMode) {
-        toast.info("Sample budget", { description: DEMO_EDIT_MESSAGE });
-        return;
-      }
-      if (!user) return;
+      if (!isDemoMode && !user) return;
+
+      let nextCategoryLimits: CategoryLimitsByMonth | undefined;
       setData((prev) => {
-        const monthLimits = prev.categoryLimits[currentMonth] || {};
-        const next = { ...monthLimits, [categoryValue]: limitCents };
-        if (limitCents <= 0) {
-          const { [categoryValue]: _removed, ...rest } = next;
-          return {
-            ...prev,
-            categoryLimits: { ...prev.categoryLimits, [currentMonth]: rest },
-          };
-        }
-        return {
-          ...prev,
-          categoryLimits: { ...prev.categoryLimits, [currentMonth]: next },
-        };
+        const { nextData, nextCategoryLimits: nextLimits } = applyCategoryLimitUpdate(
+          prev,
+          currentMonth,
+          categoryValue,
+          limitCents,
+        );
+        nextCategoryLimits = nextLimits;
+        return nextData;
       });
 
-      if (limitCents <= 0) {
-        void supabase
+      if (isDemoMode) {
+        return;
+      }
+
+      if (!user || !nextCategoryLimits) return;
+
+      writeCategoryLimitsToLocal(user.id, nextCategoryLimits);
+
+      if (!hasSupabaseEnv) return;
+
+      const categoryMeta = allCategories.find((c) => c.value === categoryValue);
+      const label = categoryMeta?.label ?? categoryValue;
+      const iconKey = categoryMeta?.iconKey ?? DEFAULT_CATEGORY_ICON_KEY;
+
+      void (async () => {
+        const persistUpdate = async (rowId: string) => {
+          const { error } = await supabase
+            .from("categories")
+            .update({
+              limit_cents: limitCents,
+              label,
+              icon_key: iconKey,
+              month: currentMonth,
+            })
+            .eq("id", rowId)
+            .eq("user_id", user.id);
+          if (error) {
+            toast.error("Could not save limit", { description: error.message });
+          }
+        };
+
+        if (limitCents <= 0) {
+          const { error } = await supabase
+            .from("categories")
+            .delete()
+            .eq("user_id", user.id)
+            .eq("value", categoryValue)
+            .eq("month", currentMonth);
+          if (error) {
+            toast.error("Could not clear limit", { description: error.message });
+          }
+          return;
+        }
+
+        const { data: existingRows, error: selectError } = await supabase
           .from("categories")
-          .delete()
+          .select("id")
           .eq("user_id", user.id)
           .eq("value", categoryValue)
-          .eq("month", currentMonth);
-      } else {
-        void supabase.from("categories").upsert({
+          .eq("month", currentMonth)
+          .limit(1);
+
+        if (selectError) {
+          toast.error("Could not save limit", { description: selectError.message });
+          return;
+        }
+
+        const existingId = existingRows?.[0]?.id;
+        if (existingId) {
+          await persistUpdate(existingId);
+          return;
+        }
+
+        const rowId = crypto.randomUUID();
+        const { error: insertError } = await supabase.from("categories").insert({
+          id: rowId,
           user_id: user.id,
           value: categoryValue,
-          label: categoryValue,
-          icon_key: DEFAULT_CATEGORY_ICON_KEY,
+          label,
+          icon_key: iconKey,
           is_custom: false,
           month: currentMonth,
           limit_cents: limitCents,
         });
-      }
+
+        if (!insertError) {
+          return;
+        }
+
+        // Row may already exist (e.g. race or unique index); fall back to update by keys.
+        if (insertError.code === "23505") {
+          const { data: conflictRows, error: conflictSelectError } = await supabase
+            .from("categories")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("value", categoryValue)
+            .eq("month", currentMonth)
+            .limit(1);
+
+          if (conflictSelectError) {
+            toast.error("Could not save limit", { description: conflictSelectError.message });
+            return;
+          }
+
+          const conflictId = conflictRows?.[0]?.id;
+          if (conflictId) {
+            await persistUpdate(conflictId);
+            return;
+          }
+        }
+
+        toast.error("Could not save limit", { description: insertError.message });
+      })();
     },
-    [currentMonth, isDemoMode, user],
+    [allCategories, currentMonth, isDemoMode, user],
   );
 
   const totalSpentCents = currentMonthData.expenses.reduce((sum, exp) => sum + exp.amountCents, 0);
   const remainingIncomeCents = (currentMonthData.budget?.salaryCents || 0) - totalSpentCents;
-  // Assume salary cycle aligns with selected budget month boundaries.
-  // For month YYYY-MM, next salary date is the first day of YYYY-MM+1.
-  const nextSalaryDate = format(
-    addMonths(startOfMonth(new Date(`${currentMonth}-01T00:00:00`)), 1),
-    "yyyy-MM-dd",
-  );
-  const upcomingBills = getUpcomingBills(data.recurringBills);
-  const upcomingBillsBeforeNextSalary = getUpcomingBills(data.recurringBills, nextSalaryDate);
+  const incomeCycleConfigured = isIncomeCycleConfigured(incomeCycle);
+  const cycleWindow = incomeCycleConfigured
+    ? getActiveCycleWindow(incomeCycle, new Date())
+    : null;
+  const nextSalaryDate = incomeCycleConfigured
+    ? format(cycleWindow!.end, "yyyy-MM-dd")
+    : getDefaultNextIncomeDateForMonth(currentMonth);
+  const monthStartIso = incomeCycleConfigured
+    ? format(cycleWindow!.start, "yyyy-MM-dd")
+    : `${currentMonth}-01`;
+  const upcomingBills = getUpcomingBills(data.recurringBills, nextSalaryDate, monthStartIso);
+  const upcomingBillsBeforeNextSalary = upcomingBills;
   const upcomingUnpaidBillsCents = upcomingBillsBeforeNextSalary.reduce((sum, bill) => sum + bill.amountCents, 0);
   const savingsGoalAllocationCents = data.savingsGoals.reduce(
     (sum, goal) => sum + calculateGoalPlan(goal).monthlyRequiredSavingCents,
     0,
   );
-  const safeToSpendCents = remainingIncomeCents - upcomingUnpaidBillsCents - savingsGoalAllocationCents;
+  const safeToSpendCents = computeSafeToSpendCents({
+    incomeForCurrentCycleCents: currentMonthData.budget?.salaryCents ?? 0,
+    spentSoFarCents: totalSpentCents,
+    upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
+    savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
+  });
   const remainingCents = safeToSpendCents;
   const hasAnyData =
     Object.keys(data.budgets).length > 0 ||
@@ -1521,7 +1774,11 @@ function useFinanceDataInternal() {
       }
 
       // 1) Income — saves budget for the current month.
-      await updateMonthlyIncome(currentMonth, merged.monthlyIncomeCents, "Income from setup");
+      await runWithIncomeWrite("onboarding", () =>
+        updateMonthlyIncome(currentMonth, merged.monthlyIncomeCents, "Income from setup", undefined, {
+          source: "onboarding",
+        }),
+      );
 
       // 2) Optional custom spending categories.
       if (hasSupabaseEnv) {
@@ -1756,13 +2013,18 @@ function useFinanceDataInternal() {
     getMonthData,
     budget: currentMonthData.budget,
     expenses: currentMonthData.expenses,
+    allExpenses: data.expenses,
     totalSpentCents,
     remainingIncomeCents,
     safeToSpendCents,
+    savingsGoalAllocationCents,
     upcomingBills,
     upcomingUnpaidBillsCents,
     upcomingBillsBeforeNextSalary,
     nextSalaryDate,
+    incomeCycle,
+    isIncomeCycleConfigured: incomeCycleConfigured,
+    saveIncomeCycle,
     recurringBills: data.recurringBills,
     remainingCents,
     hasAnyData,

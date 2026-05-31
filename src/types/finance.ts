@@ -93,6 +93,12 @@ export interface RecurringBill {
   status: BillStatus;
   lastPaidDate?: string;
   nextDueDate: string;
+  /** First due date in the series (used to compute the final payment date). */
+  seriesStartDate?: string;
+  /** Total payments in a fixed series; omit or null for ongoing bills. */
+  paymentCount?: number | null;
+  /** How many payments have been marked paid in this series. */
+  paymentsCompleted?: number;
   note?: string;
   createdAt: string;
   updatedAt: string;
