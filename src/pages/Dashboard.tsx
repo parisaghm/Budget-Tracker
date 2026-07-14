@@ -32,6 +32,7 @@ import {
   getCycleWindowDatesForMonthKey,
   isIncomeCycleConfigured,
 } from "@/utils/incomeCycle";
+import { FinanceDiagnostics } from "@/components/dev/FinanceDiagnostics";
 
 const NOTIFICATION_LOG_KEY = "bt_notification_log_v1";
 
@@ -57,6 +58,7 @@ export default function Dashboard() {
     isLoading,
     markRecurringBillPaid,
     categoryLimitsForMonth,
+    financeDiagnostics,
   } = useSupabaseFinanceData();
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
@@ -344,6 +346,8 @@ export default function Dashboard() {
         <main
           className={`container ${appShellMaxWidthClass} space-y-3 px-4 pb-mobile-nav pr-mobile-fab pt-3 sm:space-y-4 sm:px-6 sm:pt-4 md:pb-8 md:pr-4 lg:px-7 lg:pt-4`}
         >
+          {import.meta.env.DEV ? <FinanceDiagnostics snapshot={financeDiagnostics} /> : null}
+
           {isLoading ? (
             <div className="card-dashboard p-6">
               <p className="text-sm text-muted-foreground">Loading your budget...</p>

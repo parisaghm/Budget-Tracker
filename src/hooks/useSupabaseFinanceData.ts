@@ -53,6 +53,14 @@ import {
 } from "@/utils/incomeCycle";
 import { readIncomeCycle, writeIncomeCycle } from "@/utils/incomeCyclePreferences";
 import {
+  fetchUserSettings,
+  getSupabaseProjectHost,
+  upsertUserIncomeCycle,
+  upsertUserSelectedMonth,
+  type MonthSelectionSource,
+  type SettingsPersistenceSource,
+} from "@/utils/userSettings";
+import {
   canWriteMonthlyIncome,
   runWithIncomeWrite,
   warnBlockedIncomeWrite,
@@ -331,6 +339,22 @@ const initialData: StoredData = {
 const DEMO_EDIT_MESSAGE =
   "This is sample data. Create a free account to save your own numbers.";
 
+export interface FinanceDiagnosticsSnapshot {
+  supabaseHost: string | null;
+  userId: string | null;
+  currentMonth: string;
+  monthSelectionSource: MonthSelectionSource;
+  settingsSource: SettingsPersistenceSource;
+  incomeCycleConfigured: boolean;
+  cycleStart: string | null;
+  cycleEnd: string | null;
+  incomeCents: number;
+  spentCents: number;
+  savingsCents: number;
+  billsCents: number;
+  settingsHydrated: boolean;
+}
+
 function useFinanceDataInternal() {
   const { user } = useAuth();
   const { isDemoMode } = useDemo();
@@ -346,12 +370,90 @@ function useFinanceDataInternal() {
   const [incomeCycle, setIncomeCycle] = useState<IncomeCycle | null>(() =>
     readIncomeCycle(financeUserId || undefined),
   );
+  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const [monthSelectionSource, setMonthSelectionSource] = useState<MonthSelectionSource>(
+    isDemoMode ? "demo" : "default_current_month",
+  );
+  const [settingsSource, setSettingsSource] = useState<SettingsPersistenceSource>("none");
   /** Discards stale `loadFromSupabase` results when a newer load started (e.g. onboarding sync vs initial fetch). */
   const financeLoadGenerationRef = useRef(0);
 
   useEffect(() => {
-    setIncomeCycle(readIncomeCycle(financeUserId || undefined));
-  }, [financeUserId]);
+    if (isDemoMode) {
+      setSettingsHydrated(true);
+      setMonthSelectionSource("demo");
+      setSettingsSource("none");
+      return;
+    }
+
+    if (!financeUserId) {
+      setSettingsHydrated(true);
+      setMonthSelectionSource("default_current_month");
+      setSettingsSource("none");
+      return;
+    }
+
+    let cancelled = false;
+    setSettingsHydrated(false);
+
+    void (async () => {
+      const remote = hasSupabaseEnv ? await fetchUserSettings(financeUserId) : null;
+      if (cancelled) return;
+
+      const localCycle = readIncomeCycle(financeUserId);
+      let resolvedCycle: IncomeCycle | null = null;
+      let resolvedSettingsSource: SettingsPersistenceSource = "none";
+
+      if (remote?.incomeCycle) {
+        resolvedCycle = remote.incomeCycle;
+        resolvedSettingsSource = "supabase";
+        writeIncomeCycle(financeUserId, resolvedCycle);
+      } else if (localCycle) {
+        resolvedCycle = localCycle;
+        resolvedSettingsSource = "localStorage";
+        if (hasSupabaseEnv) {
+          const migrated = await upsertUserIncomeCycle(financeUserId, resolvedCycle);
+          if (migrated) {
+            resolvedSettingsSource = "supabase";
+          }
+        }
+      }
+
+      setIncomeCycle(resolvedCycle);
+      setSettingsSource(resolvedSettingsSource);
+
+      if (resolvedCycle) {
+        monthManuallySelectedRef.current = false;
+        const activeMonth = getActiveBudgetMonthKey(resolvedCycle);
+        setCurrentMonthState(activeMonth);
+        setMonthSelectionSource("income_cycle_active");
+      } else {
+        const localMonth = readCurrentMonthFromLocalStorage();
+        const remoteMonth = remote?.selectedMonth ?? null;
+        const fallbackMonth = getCurrentMonth();
+        const resolvedMonth = remoteMonth ?? (localMonth !== fallbackMonth ? localMonth : fallbackMonth);
+
+        if (remoteMonth) {
+          setMonthSelectionSource("supabase_selected_month");
+        } else if (localMonth !== fallbackMonth) {
+          setMonthSelectionSource("localStorage_selected_month");
+          if (hasSupabaseEnv) {
+            void upsertUserSelectedMonth(financeUserId, localMonth);
+          }
+        } else {
+          setMonthSelectionSource("default_current_month");
+        }
+
+        setCurrentMonthState(normalizeYearMonthYm(resolvedMonth));
+      }
+
+      setSettingsHydrated(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [financeUserId, isDemoMode]);
 
   const saveIncomeCycle = useCallback(
     (next: IncomeCycle | null) => {
@@ -359,19 +461,37 @@ function useFinanceDataInternal() {
       setIncomeCycle(normalized);
       if (financeUserId) {
         writeIncomeCycle(financeUserId, normalized);
+        if (!isDemoMode && hasSupabaseEnv) {
+          void upsertUserIncomeCycle(financeUserId, normalized).then((ok) => {
+            if (ok) setSettingsSource("supabase");
+          });
+        }
       }
       if (normalized) {
         monthManuallySelectedRef.current = false;
         setCurrentMonthState(getActiveBudgetMonthKey(normalized));
+        setMonthSelectionSource("income_cycle_active");
       }
     },
-    [financeUserId],
+    [financeUserId, isDemoMode],
   );
 
-  const setCurrentMonth = useCallback((month: string) => {
-    monthManuallySelectedRef.current = true;
-    setCurrentMonthState(normalizeYearMonthYm(month));
-  }, []);
+  const setCurrentMonth = useCallback(
+    (month: string) => {
+      monthManuallySelectedRef.current = true;
+      const normalized = normalizeYearMonthYm(month);
+      setCurrentMonthState(normalized);
+      setMonthSelectionSource(
+        isIncomeCycleConfigured(incomeCycle) ? "manual_navigation" : "supabase_selected_month",
+      );
+      if (financeUserId && !isDemoMode && hasSupabaseEnv && !isIncomeCycleConfigured(incomeCycle)) {
+        void upsertUserSelectedMonth(financeUserId, normalized).then((ok) => {
+          if (ok) setSettingsSource("supabase");
+        });
+      }
+    },
+    [financeUserId, incomeCycle, isDemoMode],
+  );
 
   useEffect(() => {
     if (!isIncomeCycleConfigured(incomeCycle)) return;
@@ -1854,6 +1974,37 @@ function useFinanceDataInternal() {
     data.savingsGoals.length > 0 ||
     data.recurringBills.length > 0;
 
+  const financeDiagnostics = useMemo<FinanceDiagnosticsSnapshot>(
+    () => ({
+      supabaseHost: getSupabaseProjectHost(),
+      userId: financeUserId || null,
+      currentMonth,
+      monthSelectionSource,
+      settingsSource,
+      incomeCycleConfigured,
+      cycleStart: cycleWindow ? format(cycleWindow.start, "yyyy-MM-dd") : null,
+      cycleEnd: cycleWindow ? format(cycleWindow.end, "yyyy-MM-dd") : null,
+      incomeCents: currentMonthData.budget?.salaryCents ?? 0,
+      spentCents: totalSpentCents,
+      savingsCents: savingsGoalAllocationCents,
+      billsCents: upcomingUnpaidBillsCents,
+      settingsHydrated,
+    }),
+    [
+      currentMonth,
+      currentMonthData.budget?.salaryCents,
+      cycleWindow,
+      financeUserId,
+      incomeCycleConfigured,
+      monthSelectionSource,
+      settingsHydrated,
+      settingsSource,
+      savingsGoalAllocationCents,
+      totalSpentCents,
+      upcomingUnpaidBillsCents,
+    ],
+  );
+
   const getCurrentMonthIncome = useCallback(() => {
     const budget = data.budgets[currentMonth];
     return {
@@ -2253,6 +2404,8 @@ function useFinanceDataInternal() {
     incomeCycle,
     isIncomeCycleConfigured: incomeCycleConfigured,
     saveIncomeCycle,
+    financeDiagnostics,
+    settingsHydrated,
     recurringBills: data.recurringBills,
     remainingCents,
     hasAnyData,
