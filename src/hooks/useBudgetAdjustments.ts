@@ -25,6 +25,7 @@ export function useBudgetAdjustments(userId: string | undefined, month: string) 
     leftoverCoverCents: 0,
     pausedGoalIds: [],
     dailyPaceTargetCents: null,
+    goalReallocationCents: {},
   });
   const [rolloverDecision, setRolloverDecisionState] = useState<RolloverDecisionRecord | null>(null);
   const [overspendDecision, setOverspendDecisionState] = useState<OverspendDecisionRecord | null>(null);

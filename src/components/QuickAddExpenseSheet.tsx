@@ -74,7 +74,7 @@ export function QuickAddExpenseSheet({ currency = "EUR", categories, budgetMonth
           type="button"
           size="icon"
           className={cn(
-            "touch-hit fixed right-4 z-50 h-16 w-16 rounded-full border border-primary/20 shadow-lg shadow-primary/25 md:hidden",
+            "touch-hit fixed right-4 z-50 hidden h-14 w-14 rounded-full border border-primary/20 shadow-lg shadow-primary/25 max-[640px]:inline-flex",
             "bottom-mobile-fab",
           )}
           aria-label="Quick add expense"

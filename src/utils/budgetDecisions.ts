@@ -23,6 +23,8 @@ export interface MonthBudgetAdjustments {
   pausedGoalIds: string[];
   /** User-set daily pace target until payday (cents). */
   dailyPaceTargetCents: number | null;
+  /** Cents reallocated from each goal's monthly plan to spending this cycle. */
+  goalReallocationCents: Record<string, number>;
 }
 
 export interface RolloverDecisionRecord {
@@ -57,6 +59,7 @@ export interface BudgetActionHistoryEntry {
 }
 
 const ADJUSTMENTS_KEY = "bt_month_adjustments_v1";
+export const ADJUSTMENTS_STORAGE_KEY = ADJUSTMENTS_KEY;
 const ROLLOVER_KEY = "bt_rollover_decision_v1";
 const OVERSPEND_KEY = "bt_overspend_decision_v1";
 const HISTORY_KEY = "bt_budget_action_history_v1";
@@ -67,6 +70,7 @@ const EMPTY_ADJUSTMENTS: MonthBudgetAdjustments = {
   leftoverCoverCents: 0,
   pausedGoalIds: [],
   dailyPaceTargetCents: null,
+  goalReallocationCents: {},
 };
 
 function normalizeAdjustments(raw: Partial<MonthBudgetAdjustments> | undefined): MonthBudgetAdjustments {
@@ -75,6 +79,7 @@ function normalizeAdjustments(raw: Partial<MonthBudgetAdjustments> | undefined):
     ...raw,
     pausedGoalIds: raw?.pausedGoalIds ?? [],
     dailyPaceTargetCents: raw?.dailyPaceTargetCents ?? null,
+    goalReallocationCents: raw?.goalReallocationCents ?? {},
   };
 }
 

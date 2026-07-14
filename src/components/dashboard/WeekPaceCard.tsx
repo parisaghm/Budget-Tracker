@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { Leaf } from "lucide-react";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
 import type { Expense } from "@/types/finance";
 import { formatMoney } from "@/utils/money";
 import { buildWeekPaceData } from "@/utils/weekPace";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { cn } from "@/lib/utils";
 
 interface WeekPaceCardProps {
@@ -27,77 +29,96 @@ export function WeekPaceCard({
   const { days, spentThisWeekCents, insightLine, isOverTypical, maxDayCents, paceLabel } =
     paceData;
 
+  const prefersReducedMotion = usePrefersReducedMotion();
   const positiveInsight = !isOverTypical && insightLine.includes("less than your usual");
 
   return (
     <section
-      className={cn("card-dashboard p-6 sm:p-8", calmMode && "opacity-[0.98]")}
+      className={cn(
+        "week-pace-mobile card-dashboard dashboard-card-hover w-full rounded-[1.5rem] p-5 lg:rounded-[1.875rem] lg:p-8",
+        calmMode && "opacity-[0.98]",
+      )}
       aria-label="Your week so far"
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-[-0.015em] text-[#1A1411] sm:text-[1.125rem]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-[1.125rem]">
             Your week so far
           </h2>
           {paceLabel ? (
-            <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">{paceLabel}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D] sm:text-sm">{paceLabel}</p>
           ) : null}
         </div>
         <div className="shrink-0 text-right">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#746A5D]">
-            Spent this week
+            Spent
           </p>
-          <p className="money-display-md mt-1.5 text-[1.35rem] text-[#1A1411] sm:text-[1.45rem]">
-            {formatMoney(spentThisWeekCents, currency)}
+          <p className="money-display-md mt-1 text-[1.25rem] leading-none text-[#1A1411] sm:mt-1.5 sm:text-[1.45rem]">
+            <AnimatedMoney
+              cents={spentThisWeekCents}
+              currency={currency}
+              variant="inline"
+              animateOnMount
+              duration={600}
+            />
           </p>
         </div>
       </div>
 
-      <div className="mt-7 grid grid-cols-7 gap-2 sm:mt-8 sm:gap-2.5">
-        {days.map((day) => {
+      <div className="mt-6 grid grid-cols-7 gap-1.5 sm:mt-8 sm:gap-2.5">
+        {days.map((day, index) => {
           const amount = day.amountCents;
           const heightPct =
             amount > 0 ? Math.max(14, Math.round((amount / maxDayCents) * 100)) : 0;
           const hasAmount = amount > 0;
+          const barDelayMs = index * 45;
+          const mobileDayLabel = day.dayLabel.charAt(0).toUpperCase();
 
           return (
-            <div key={day.dateIso} className="flex flex-col items-center gap-2">
+            <div key={day.dateIso} className="flex min-w-0 flex-col items-center gap-1.5 sm:gap-2">
               <p
                 className={cn(
-                  "money-amount-sm h-4 text-[10px] leading-none sm:text-[11px]",
+                  "money-amount-sm hidden h-4 text-[10px] leading-none sm:block sm:text-[11px]",
                   day.isToday ? "text-[#6E4E91]" : "text-[#2B221B]/80",
                 )}
               >
                 {hasAmount ? formatMoney(amount, currency) : ""}
               </p>
-              <div
-                className="week-pace-bar-track relative w-full overflow-hidden rounded-2xl"
-                style={{ height: "7.5rem" }}
-              >
+              <div className="week-pace-bar-track relative w-full overflow-hidden rounded-2xl sm:h-[7.5rem]">
                 {hasAmount ? (
                   <div
                     className={cn(
-                      "week-pace-bar-spent absolute inset-x-0 bottom-0 rounded-2xl transition-all duration-700 ease-out",
+                      "week-pace-bar-spent absolute inset-x-0 bottom-0 rounded-2xl",
+                      !prefersReducedMotion && "week-pace-bar-spent--animate",
                       day.isToday && "ring-1 ring-[#6E4E91]/25",
                     )}
-                    style={{ height: `${heightPct}%` }}
+                    style={
+                      prefersReducedMotion
+                        ? { height: `${heightPct}%` }
+                        : ({
+                            ["--bar-target-height" as string]: `${heightPct}%`,
+                            ["--bar-delay" as string]: `${barDelayMs}ms`,
+                            ["--bar-duration" as string]: "500ms",
+                          } as CSSProperties)
+                    }
                   />
                 ) : null}
               </div>
               <p
                 className={cn(
-                  "text-xs font-normal",
-                  day.isToday ? "font-medium text-[#6E4E91]" : "text-[#746A5D]",
+                  "week-pace-day-label text-[11px] font-medium sm:text-xs sm:font-normal",
+                  day.isToday ? "text-[#6E4E91]" : "text-[#746A5D]",
                 )}
               >
-                {day.dayLabel}
+                <span className="sm:hidden">{mobileDayLabel}</span>
+                <span className="hidden sm:inline">{day.dayLabel}</span>
               </p>
             </div>
           );
         })}
       </div>
 
-      <div className="week-pace-feedback mt-6">
+      <div className="week-pace-feedback mt-5 sm:mt-6">
         <Leaf
           className={cn(
             "mt-0.5 h-4 w-4 shrink-0",
@@ -105,7 +126,7 @@ export function WeekPaceCard({
           )}
           aria-hidden
         />
-        <p className={cn(positiveInsight ? "text-[#2B221B]" : "text-[#746A5D]")}>
+        <p className={cn("text-sm leading-relaxed", positiveInsight ? "text-[#2B221B]" : "text-[#746A5D]")}>
           {insightLine}
           {positiveInsight ? " Keep it up!" : null}
         </p>

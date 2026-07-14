@@ -1,70 +1,48 @@
-import { useEffect, useRef, useState } from 'react';
-import { formatMoney } from '@/utils/money';
+import { HeroMoney } from "@/components/budget/HeroMoney";
+import { useCountUp } from "@/hooks/useCountUp";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
+import { formatMoney } from "@/utils/money";
 
 interface AnimatedMoneyProps {
   cents: number;
   currency?: string;
-  /**
-   * Optional className applied to the outer span, so the parent
-   * can control typography/colour (e.g. in the hero number).
-   */
   className?: string;
-  /**
-   * Animation duration in milliseconds.
-   */
-  durationMs?: number;
+  splitDecimals?: boolean;
+  /** Run count-up on first mount when true. */
+  animateOnMount?: boolean;
+  duration?: number;
+  /** Compact display variant for inline amounts. */
+  variant?: "hero" | "inline";
 }
 
+/**
+ * Money display with a one-time ease-out count-up on mount.
+ */
 export function AnimatedMoney({
   cents,
-  currency = 'EUR',
-  className,
-  durationMs = 600,
+  currency = "EUR",
+  className = "",
+  splitDecimals = true,
+  animateOnMount = true,
+  duration = 600,
+  variant = "hero",
 }: AnimatedMoneyProps) {
-  const [displayCents, setDisplayCents] = useState(cents);
-  const previousCentsRef = useRef(cents);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const shouldAnimate = animateOnMount && !prefersReducedMotion;
+  const displayCents = useCountUp(cents, { duration, enabled: shouldAnimate });
 
-  useEffect(() => {
-    const from = previousCentsRef.current;
-    const to = cents;
-
-    if (from === to) {
-      return;
-    }
-
-    const start = performance.now();
-    const duration = Math.max(0, durationMs);
-
-    let frameId: number;
-
-    const tick = (now: number) => {
-      const elapsed = now - start;
-      const t = duration === 0 ? 1 : Math.min(1, elapsed / duration);
-
-      // Ease-out cubic for a softer finish
-      const eased = 1 - Math.pow(1 - t, 3);
-      const next = Math.round(from + (to - from) * eased);
-
-      setDisplayCents(next);
-
-      if (t < 1) {
-        frameId = requestAnimationFrame(tick);
-      } else {
-        previousCentsRef.current = to;
-      }
-    };
-
-    frameId = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-    };
-  }, [cents, durationMs]);
+  if (variant === "inline") {
+    return (
+      <span className={className}>{formatMoney(displayCents, currency)}</span>
+    );
+  }
 
   return (
-    <span className={className}>
-      {formatMoney(displayCents, currency)}
-    </span>
+    <HeroMoney
+      cents={displayCents}
+      currency={currency}
+      className={className}
+      splitDecimals={splitDecimals}
+    />
   );
 }
-

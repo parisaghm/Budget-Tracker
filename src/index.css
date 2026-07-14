@@ -1,4 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,480;0,9..144,520;0,9..144,560;0,9..144,600;1,9..144,480&display=swap');
+@import "./styles/mobile-home.css";
+@import "./styles/budget-page.css";
+@import "./styles/budget-mobile.css";
 
 @tailwind base;
 @tailwind components;
@@ -222,6 +225,12 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (max-width: 640px) {
+  html {
+    scroll-padding-bottom: var(--mobile-bottom-inset, calc(72px + env(safe-area-inset-bottom, 0px) + 16px));
+  }
+}
+
 @layer components {
   /* Surfaces — hero (plan) > elevated > secondary (quieter support cards) */
   .card-elevated {
@@ -260,6 +269,40 @@ html {
   }
 
   /* Next Step — warm cream card, purple accents only in labels/icons */
+  /* Dashboard main cards — subtle lift on hover */
+  .dashboard-card-hover {
+    transition:
+      transform 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .dashboard-card-hover:hover {
+    transform: translateY(-2px);
+  }
+
+  .card-next-step.dashboard-card-hover:hover {
+    box-shadow:
+      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
+      0 2px 4px 0 hsl(26 23% 14% / 0.04),
+      0 12px 32px -10px hsl(270 32% 36% / 0.11);
+  }
+
+  .card-dashboard.dashboard-card-hover:hover {
+    box-shadow:
+      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
+      0 2px 4px 0 hsl(26 23% 14% / 0.04),
+      0 12px 30px -10px hsl(270 32% 36% / 0.1);
+  }
+
+  .card-plan-hero.dashboard-card-hover:hover {
+    box-shadow:
+      inset 0 1px 0 0 hsl(34 100% 97% / 0.92),
+      inset 0 -1px 0 0 hsl(41 38% 86% / 0.35),
+      0 2px 4px 0 hsl(26 23% 14% / 0.042),
+      0 10px 24px -6px hsl(270 32% 36% / 0.09),
+      0 18px 42px -14px hsl(269 30% 44% / 0.12);
+  }
+
   .card-next-step {
     @apply relative overflow-hidden rounded-[1.875rem] border;
     border-color: #e8dfcc;
@@ -286,17 +329,23 @@ html {
     border-color: #e8dfcc;
     box-shadow: 0 1px 2px 0 hsl(26 23% 14% / 0.035);
     transition:
-      background-color 200ms ease-out,
-      border-color 200ms ease-out,
-      transform 200ms ease-out,
-      box-shadow 200ms ease-out;
+      background-color 170ms ease-out,
+      border-color 170ms ease-out,
+      box-shadow 170ms ease-out;
   }
 
   .card-next-step-action:hover:not(:disabled) {
     background: #f8f3fc;
     border-color: #d8c8eb;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px -2px hsl(269 30% 44% / 0.08);
+    box-shadow: 0 1px 3px 0 hsl(269 30% 44% / 0.06);
+  }
+
+  .card-next-step-action-chevron {
+    transition: transform 170ms ease-out;
+  }
+
+  .card-next-step-action:hover:not(:disabled) .card-next-step-action-chevron {
+    transform: translateX(2px);
   }
 
   .card-next-step-action:focus-visible {
@@ -483,6 +532,11 @@ html {
     border-top-color: hsl(41 38% 86% / 0.85);
   }
 
+  .card-plan-hero--compact .hero-health-pill + p {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
   .card-accent {
     @apply relative overflow-hidden rounded-[1.75rem] border;
     background: linear-gradient(
@@ -561,6 +615,11 @@ html {
   .label-caps-hero {
     @apply font-sans text-[10px] font-semibold uppercase tracking-[0.16em];
     color: #6E4E91;
+  }
+
+  .label-caps-hero-safe {
+    @apply font-sans text-[10px] font-semibold uppercase tracking-[0.16em];
+    color: hsl(32 9% 41%);
   }
 
   .card-plan-hero .text-muted-foreground {
@@ -659,6 +718,34 @@ html {
     background: linear-gradient(180deg, #8b6fad 0%, #6e4e91 100%);
   }
 
+  @keyframes weekPaceBarGrow {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--bar-target-height);
+    }
+  }
+
+  .week-pace-bar-spent--animate {
+    height: 0;
+    animation: weekPaceBarGrow var(--bar-duration, 500ms) cubic-bezier(0, 0, 0.2, 1) forwards;
+    animation-delay: var(--bar-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .week-pace-bar-spent--animate {
+      animation: none;
+      height: var(--bar-target-height);
+    }
+
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-scale-in {
+      animation: none;
+    }
+  }
+
   .week-pace-feedback {
     @apply flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm leading-relaxed;
     border-color: #e8dfcc;
@@ -736,7 +823,7 @@ html {
   .shell-header-card {
     @apply rounded-[1.75rem] border px-4 py-3.5 sm:px-5 sm:py-4;
     border-color: #e8dfcc;
-    background: linear-gradient(180deg, #fffdf8 0%, #f6f0e4 100%);
+    background: #fcfaf6;
     box-shadow:
       inset 0 1px 0 0 hsl(34 100% 97% / 0.9),
       0 1px 2px 0 hsl(26 23% 14% / 0.035),
@@ -779,6 +866,30 @@ html {
     z-index: 1;
   }
 
+  .dashboard-home > header {
+    padding-top: 0.75rem;
+    padding-bottom: 0;
+  }
+
+  .dashboard-home .shell-header-card {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .dashboard-home .shell-header-card > div {
+    gap: 0.75rem;
+  }
+
+  .dashboard-home .shell-header-card nav {
+    margin-top: 0.75rem;
+    padding-top: 0.625rem;
+  }
+
+  .dashboard-home .shell-nav-link {
+    padding-top: 0.4375rem;
+    padding-bottom: 0.4375rem;
+  }
+
   .dashboard-home .card-shell {
     border-color: hsl(var(--primary) / 0.12);
     box-shadow:
@@ -791,12 +902,21 @@ html {
   }
 
   .dashboard-home main {
-    padding-top: 1rem;
+    padding-top: 0.875rem;
   }
 
-  @media (min-width: 640px) {
+  @media (min-width: 641px) {
     .dashboard-home main {
-      padding-top: 1.25rem;
+      padding-top: 1rem;
+    }
+
+    .dashboard-home > header {
+      padding-top: 1rem;
+    }
+
+    .dashboard-home .shell-header-card {
+      padding-top: 0.875rem;
+      padding-bottom: 0.875rem;
     }
   }
 
@@ -816,6 +936,14 @@ html {
     @apply h-2 w-full overflow-hidden rounded-full bg-muted/80;
   }
 
+  .spending-category-row__track {
+    background: hsl(41 38% 86% / 0.55);
+  }
+
+  .spending-category-row__fill {
+    min-width: 0;
+  }
+
   .progress-bar {
     @apply h-full rounded-full transition-all duration-700 ease-out;
     background: hsl(var(--segment-bills));
@@ -823,6 +951,10 @@ html {
 
   .segment-bar {
     @apply flex h-2.5 w-full overflow-hidden rounded-full bg-muted/60;
+  }
+
+  .segment-bar--plan {
+    @apply h-3.5 sm:h-4;
   }
 
   .segment-bar > span {
@@ -927,15 +1059,31 @@ html {
 }
 
 @layer utilities {
-  .pb-mobile-nav {
-    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  .mobile-bottom-spacer {
+    flex-shrink: 0;
+    width: 100%;
   }
 
-  .bottom-mobile-fab {
-    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  @media (max-width: 640px) {
+    .mobile-bottom-spacer {
+      height: var(--mobile-bottom-inset, calc(5.75rem + env(safe-area-inset-bottom, 0px)));
+      min-height: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+    }
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 640px) {
+    .pb-mobile-nav {
+      padding-bottom: var(--mobile-bottom-inset, calc(5.75rem + env(safe-area-inset-bottom, 0px)));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .bottom-mobile-fab {
+      bottom: var(--mobile-bottom-inset, calc(5.75rem + env(safe-area-inset-bottom, 0px)));
+    }
+  }
+
+  @media (max-width: 640px) {
     .pr-mobile-fab {
       padding-right: calc(4.75rem + env(safe-area-inset-right, 0px));
     }

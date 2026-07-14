@@ -1,0 +1,57 @@
+/** Budget page — allocation workspace layout. */
+
+.budget-page {
+  overflow-x: clip;
+}
+
+.budget-page-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.budget-page-section {
+  width: 100%;
+  min-width: 0;
+}
+
+.budget-page-section--list {
+  flex: 1;
+}
+
+.budget-allocation-strip {
+  /* Compact allocation — no dashboard card chrome */
+}
+
+.budget-category-sections {
+  /* Lightweight category workspace container */
+}
+
+.budget-attention-banner {
+  /* Inline attention summary */
+}
+
+.budget-category-group + .budget-category-group {
+  margin-top: 0.75rem;
+}
+
+.budget-category-row {
+  min-height: auto;
+}
+
+.budget-category-list {
+  gap: 0.25rem;
+}
+
+@media (min-width: 640px) {
+  .budget-page-grid {
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .budget-page-grid {
+    gap: 1.25rem;
+  }
+}

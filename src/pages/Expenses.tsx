@@ -24,6 +24,7 @@ export default function ExpensesPage() {
     deleteCategory,
     categoryLimitsForMonth,
     setCategoryLimit,
+    incomeCycle,
   } = useSupabaseFinanceData();
 
   const activeCurrency = budget?.currency ?? "EUR";
@@ -34,16 +35,17 @@ export default function ExpensesPage() {
         <title>Expenses · Sova Budget</title>
         <meta name="description" content="Log spending and see category breakdowns." />
       </Helmet>
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-dvh flex-col bg-background">
         <AppShellHeader
           title="Expenses"
           subtitle="Log spending when it happens"
           currency={activeCurrency}
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
+          incomeCycle={incomeCycle}
           contentMaxWidth="max-w-6xl"
         />
-        <main className="container max-w-6xl space-y-5 px-4 pb-mobile-nav pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pb-10 md:pr-4 lg:px-8">
+        <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-4 lg:px-8">
           <p className="text-sm text-muted-foreground md:hidden">
             Use the + button to add an expense quickly.
           </p>

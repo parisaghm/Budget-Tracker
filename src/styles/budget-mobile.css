@@ -1,0 +1,57 @@
+/* Budget page — mobile presentation (max-width 640px). */
+
+@media (max-width: 640px) {
+  .budget-page main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .budget-page .shell-header-card--budget-mobile {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .budget-page .budget-mobile-header__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .budget-page .budget-mobile-header__brand .shell-currency-pill {
+    display: none;
+  }
+
+  .budget-page .budget-mobile-header__subtitle {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.35;
+    color: #746a5d;
+  }
+
+  .budget-page .budget-mobile-header__month {
+    margin-top: 0.875rem;
+    width: 100%;
+  }
+
+  .budget-page .budget-category-row {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .budget-attention-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .budget-category-group h3 {
+    font-size: 0.625rem;
+  }
+}

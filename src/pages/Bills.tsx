@@ -5,7 +5,12 @@ import { Link } from "react-router-dom";
 import { Calendar, List, Pencil, Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import type { RecurringBill } from "@/types/finance";
+import { useAuth } from "@/context/AuthContext";
+import { useDemo } from "@/context/DemoContext";
+import { useBudgetAdjustments } from "@/hooks/useBudgetAdjustments";
+import { useBillPaymentDecision } from "@/hooks/useBillPaymentDecision";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
+import { BillPaymentModals } from "@/components/BillPaymentModals";
 import { formatMoney } from "@/utils/money";
 import {
   BILL_FREQUENCY_OPTIONS,
@@ -14,6 +19,8 @@ import {
   getDaysUntil,
   isBillSeriesActive,
 } from "@/utils/recurringBills";
+import { getPausedGoalsAllocationCents, getGoalReallocationBoostCents } from "@/utils/paceSupport";
+import { computeSafeToSpendCents } from "@/utils/safeToSpend";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { RecurringBillForm } from "@/components/RecurringBillForm";
@@ -25,6 +32,8 @@ type ViewMode = "list" | "calendar";
 const frequencyLabelMap = Object.fromEntries(BILL_FREQUENCY_OPTIONS.map((it) => [it.value, it.label])) as Record<string, string>;
 
 export default function BillsPage() {
+  const { user } = useAuth();
+  const { isDemoMode } = useDemo();
   const {
     recurringBills,
     allCategories,
@@ -35,7 +44,14 @@ export default function BillsPage() {
     markRecurringBillPaid,
     addExpense,
     currentMonth,
+    upcomingBills,
+    upcomingUnpaidBillsCents,
+    totalSpentCents,
+    savingsGoalAllocationCents,
+    savingsGoals,
   } = useSupabaseFinanceData();
+  const userId = user?.id ?? (isDemoMode ? "demo" : "");
+  const { adjustments, refresh } = useBudgetAdjustments(userId || undefined, currentMonth);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingBill, setEditingBill] = useState<RecurringBill | null>(null);
@@ -57,6 +73,31 @@ export default function BillsPage() {
   }, [sortedBills]);
 
   const activeCurrency = budget?.currency ?? "EUR";
+  const pausedGoalsBoostCents = getPausedGoalsAllocationCents(
+    savingsGoals,
+    adjustments.pausedGoalIds,
+  );
+  const goalReallocationBoostCents = getGoalReallocationBoostCents(adjustments.goalReallocationCents);
+  const adjustedSafeToSpend = computeSafeToSpendCents({
+    incomeForCurrentCycleCents: budget?.salaryCents ?? 0,
+    spentSoFarCents: totalSpentCents,
+    upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
+    savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
+    rolloverBoostCents: adjustments.rolloverBoostCents,
+    pausedGoalsBoostCents,
+    goalReallocationBoostCents,
+  });
+  const billPayment = useBillPaymentDecision({
+    userId: userId || "",
+    month: currentMonth,
+    currency: activeCurrency,
+    safeToSpendCents: adjustedSafeToSpend,
+    upcomingBills,
+    totalSpentCents,
+    savingsGoals,
+    markRecurringBillPaid,
+    onAdjustmentsChanged: refresh,
+  });
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -97,7 +138,7 @@ export default function BillsPage() {
       <Helmet>
         <title>Recurring Bills</title>
       </Helmet>
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-dvh flex-col bg-background">
         <header className="sticky top-0 z-10 border-b border-border/60 bg-background/90 backdrop-blur-xl">
           <div className="container flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
@@ -134,7 +175,7 @@ export default function BillsPage() {
           </div>
         </header>
 
-        <main className="container max-w-6xl space-y-4 px-4 pb-mobile-nav pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pb-10 md:pr-6 lg:px-8">
+        <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-6 lg:px-8">
           <div className="flex gap-2">
             <Button
               type="button"
@@ -195,25 +236,10 @@ export default function BillsPage() {
                         type="button"
                         variant="secondary"
                         className="h-12 w-full touch-manipulation sm:h-9 sm:w-auto"
-                        onClick={async () => {
-                          try {
-                            await markRecurringBillPaid(bill.id);
-                            const remaining = bill.paymentCount
-                              ? Math.max(0, bill.paymentCount - (bill.paymentsCompleted ?? 0) - 1)
-                              : null;
-                            toast.success(
-                              remaining === 0
-                                ? "Final payment recorded — bill series complete"
-                                : "Bill marked as paid and expense added",
-                            );
-                          } catch (error) {
-                            toast.error("Could not mark bill as paid", {
-                              description: error instanceof Error ? error.message : "Please try again.",
-                            });
-                          }
-                        }}
+                        disabled={billPayment.payingBillId === bill.id}
+                        onClick={() => void billPayment.requestMarkPaid(bill)}
                       >
-                        Mark as paid
+                        {billPayment.payingBillId === bill.id ? "Saving…" : "Mark as paid"}
                       </Button>
                     ) : null}
                     <Button
@@ -296,6 +322,9 @@ export default function BillsPage() {
         onConfirm={handleDeleteConfirm}
         isConfirming={isDeleting}
       />
+      {userId && !isDemoMode ? (
+        <BillPaymentModals currency={activeCurrency} {...billPayment} />
+      ) : null}
     </>
   );
 }

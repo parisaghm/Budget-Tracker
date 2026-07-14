@@ -166,6 +166,15 @@ export function getActiveCycleWindow(
   return { start, end };
 }
 
+/** Budget month key (YYYY-MM) for the income cycle that contains `today`. */
+export function getActiveBudgetMonthKey(
+  cycle: IncomeCycle,
+  today: Date = new Date(),
+): string {
+  const { start } = getActiveCycleWindow(cycle, today);
+  return format(start, "yyyy-MM");
+}
+
 /** Bill / plan window for a selected budget month (YYYY-MM). */
 export function getCycleWindowForMonthKey(
   cycle: IncomeCycle,
@@ -177,6 +186,29 @@ export function getCycleWindowForMonthKey(
     startIso: format(start, "yyyy-MM-dd"),
     endIso: format(end, "yyyy-MM-dd"),
   };
+}
+
+export function getCycleWindowDatesForMonthKey(
+  cycle: IncomeCycle,
+  monthKey: string,
+): { start: Date; end: Date } {
+  const { startIso, endIso } = getCycleWindowForMonthKey(cycle, monthKey);
+  return { start: parseISO(startIso), end: parseISO(endIso) };
+}
+
+export function formatCycleWindowShort(cycle: IncomeCycle, monthKey: string): string {
+  const { start, end } = getCycleWindowDatesForMonthKey(cycle, monthKey);
+  return `${formatIncomeDateLabel(start)} – ${formatIncomeDateLabel(end)}`;
+}
+
+export function formatBudgetMonthSelectorLabel(
+  cycle: IncomeCycle,
+  monthKey: string,
+  today: Date = new Date(),
+): string {
+  const windowLabel = formatCycleWindowShort(cycle, monthKey);
+  const isActive = monthKey === getActiveBudgetMonthKey(cycle, today);
+  return isActive ? `Current cycle · ${windowLabel}` : windowLabel;
 }
 
 export function getDaysElapsedInCycle(cycle: IncomeCycle, today: Date = new Date()): number {

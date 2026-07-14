@@ -213,7 +213,8 @@ interface ActionRowProps {
   suggested?: boolean;
 }
 
-const nextStepSectionClass = "card-next-step scroll-mt-24 p-6 sm:p-7 outline-none";
+const nextStepSectionClass =
+  "card-next-step dashboard-card-hover w-full scroll-mt-24 rounded-[1.5rem] p-5 outline-none lg:rounded-[1.875rem] lg:p-7";
 
 function ActionRow({
   to,
@@ -237,12 +238,15 @@ function ActionRow({
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[#6E4E91]/45" aria-hidden />
+      <ChevronRight
+        className="card-next-step-action-chevron h-4 w-4 shrink-0 text-[#6E4E91]/45"
+        aria-hidden
+      />
     </>
   );
 
   const baseClass =
-    "card-next-step-action disabled:pointer-events-none disabled:opacity-60";
+    "card-next-step-action group disabled:pointer-events-none disabled:opacity-60";
 
   if (onClick) {
     return (
@@ -313,7 +317,7 @@ function RolloverNextStepBody({
         </button>
       </div>
 
-      <h3 className="mt-3 text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>
@@ -407,9 +411,15 @@ function PaceSupportNextStepBody({
     savingsAmount,
     setSavingsAmount,
     savingsAmountCents,
+    savingsAmountError,
+    canConfirmMoveSavings,
     selectedGoalId,
     setSelectedGoalId,
+    selectedSavingsGoalId,
+    setSelectedSavingsGoalId,
+    movableGoals,
     pausableGoals,
+    maxMoveCents,
     recommendedDailyCents,
     currencySymbol,
     openMoveSavings,
@@ -419,6 +429,8 @@ function PaceSupportNextStepBody({
     applyPauseGoal,
     applyReducePace,
   } = usePaceSupportDecision(context);
+
+  const selectedMovableGoal = movableGoals.find((s) => s.goal.id === selectedSavingsGoalId);
 
   const handleAction = (id: (typeof paceSupportActions)[number]["id"]) => {
     if (id === "move_from_savings") openMoveSavings();
@@ -434,7 +446,7 @@ function PaceSupportNextStepBody({
         </p>
       </div>
 
-      <h3 className="mt-3 text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>
@@ -446,14 +458,20 @@ function PaceSupportNextStepBody({
             icon={icon}
             title={label}
             hint={
-              id === "pause_goal" && pausableGoals.length === 0
+              id === "move_from_savings" && movableGoals.length === 0
+                ? "No savings or goals with allocation left this cycle"
+                : id === "pause_goal" && pausableGoals.length === 0
                 ? "No active goals with a monthly amount this month"
                 : id === "reduce_daily_pace"
                   ? `Aim closer to ${formatMoney(recommendedDailyCents, context.currency)} per day until your income date.`
                   : hint
             }
             suggested={suggested}
-            disabled={isSaving || (id === "pause_goal" && pausableGoals.length === 0)}
+            disabled={
+              isSaving ||
+              (id === "move_from_savings" && movableGoals.length === 0) ||
+              (id === "pause_goal" && pausableGoals.length === 0)
+            }
             onClick={() => handleAction(id)}
           />
         ))}
@@ -467,10 +485,40 @@ function PaceSupportNextStepBody({
           <DialogHeader>
             <DialogTitle>Move money from savings</DialogTitle>
             <DialogDescription>
-              Add to what&apos;s left in this cycle. Your monthly income stays the same.
+              Use part of what you planned to save this cycle — not a bank withdrawal. Pick a goal
+              and amount to add back to what&apos;s left in this cycle.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
+            {movableGoals.length > 1 ? (
+              <div className="grid gap-2">
+                <Label>Savings / goal to reduce</Label>
+                <Select
+                  value={selectedSavingsGoalId}
+                  onValueChange={(id) => {
+                    setSelectedSavingsGoalId(id);
+                    setSavingsAmount("");
+                  }}
+                >
+                  <SelectTrigger className="h-10 rounded-xl border-border/60 bg-popover/80">
+                    <SelectValue placeholder="Choose a goal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {movableGoals.map(({ goal, availableCents }) => (
+                      <SelectItem key={goal.id} value={goal.id}>
+                        {goal.name} ({formatMoney(availableCents, context.currency)} available)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : selectedMovableGoal ? (
+              <p className="text-sm text-muted-foreground">
+                From &quot;{selectedMovableGoal.goal.name}&quot; —{" "}
+                {formatMoney(selectedMovableGoal.availableCents, context.currency)} available this
+                cycle
+              </p>
+            ) : null}
             <div className="grid gap-2">
               <Label htmlFor="pace-savings-amount">Amount ({currencySymbol})</Label>
               <Input
@@ -478,10 +526,19 @@ function PaceSupportNextStepBody({
                 type="number"
                 min="0"
                 step="0.01"
+                max={maxMoveCents > 0 ? maxMoveCents / 100 : undefined}
                 value={savingsAmount}
                 onChange={(e) => setSavingsAmount(e.target.value)}
                 autoFocus
               />
+              {maxMoveCents > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Up to {formatMoney(maxMoveCents, context.currency)} available
+                </p>
+              ) : null}
+              {savingsAmountError ? (
+                <p className="text-xs text-destructive">{savingsAmountError}</p>
+              ) : null}
             </div>
           </div>
           <DialogFooter>
@@ -489,7 +546,7 @@ function PaceSupportNextStepBody({
               Cancel
             </Button>
             <Button
-              disabled={isSaving || savingsAmountCents <= 0}
+              disabled={isSaving || !canConfirmMoveSavings}
               onClick={() => void applyMoveSavings()}
             >
               {isSaving ? "Applying…" : "Confirm"}
@@ -590,7 +647,7 @@ function OverspendNextStepBody({
         </button>
       </div>
 
-      <h3 className="mt-3 text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>
@@ -695,7 +752,7 @@ export function NextStepCard({
         ) : null}
       </div>
 
-      <h3 className="mt-3 text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>

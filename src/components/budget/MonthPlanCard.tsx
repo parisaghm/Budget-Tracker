@@ -1,14 +1,13 @@
 import {
   AlertCircle,
-  Calendar,
   CircleCheck,
   Gauge,
   Info,
+  LineChart,
   PiggyBank,
   Receipt,
-  Target,
-  TrendingDown,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import {
@@ -17,7 +16,6 @@ import {
   formatMoneyCompact,
 } from "@/utils/money";
 import type { IncomeCycle } from "@/types/incomeCycle";
-import { INCOME_CYCLE_SETUP_MESSAGE } from "@/types/incomeCycle";
 import {
   formatIncomeDateLabel,
   getNextIncomeDate,
@@ -27,6 +25,7 @@ import {
 import { getNextSalaryDateForMonth } from "@/utils/budgetPlanner";
 import type { FinancialPace } from "@/utils/financialPace";
 import { HeroMoney } from "@/components/budget/HeroMoney";
+import { PlanSegmentBar, PlanStatTile } from "@/components/budget/PlanHeroSegments";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -61,72 +60,6 @@ export interface MonthPlanCardProps {
   pausedGoalsBoostCents?: number;
   /** Shown under the hero when a carry-over boost is active. */
   carriedOverLabel?: string | null;
-}
-
-function PlanSegmentBar({
-  salaryCents,
-  fixedBillsCents,
-  savingsAllocationCents,
-  spentSoFarCents,
-  remainingCents,
-}: {
-  salaryCents: number;
-  fixedBillsCents: number;
-  savingsAllocationCents: number;
-  spentSoFarCents: number;
-  remainingCents: number;
-}) {
-  const total = Math.max(
-    salaryCents,
-    fixedBillsCents + savingsAllocationCents + spentSoFarCents + Math.max(0, remainingCents),
-  );
-  if (total <= 0) return null;
-
-  const pct = (value: number) => `${Math.max(0, (value / total) * 100)}%`;
-
-  return (
-    <div
-      className="segment-bar"
-      role="img"
-      aria-label="Budget allocation: bills, goals, spent, and left in this cycle"
-    >
-      {fixedBillsCents > 0 ? (
-        <span style={{ width: pct(fixedBillsCents), background: "hsl(var(--segment-bills))" }} />
-      ) : null}
-      {savingsAllocationCents > 0 ? (
-        <span style={{ width: pct(savingsAllocationCents), background: "hsl(var(--segment-goals))" }} />
-      ) : null}
-      {spentSoFarCents > 0 ? (
-        <span style={{ width: pct(spentSoFarCents), background: "hsl(var(--segment-spent))" }} />
-      ) : null}
-      {remainingCents > 0 ? (
-        <span style={{ width: pct(remainingCents), background: "hsl(var(--segment-safe))" }} />
-      ) : null}
-    </div>
-  );
-}
-
-function StatTile({
-  label,
-  value,
-  sub,
-  accentClass,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  accentClass?: string;
-}) {
-  return (
-    <div className="plan-stat-tile">
-      <div className="mb-2 flex items-center gap-1.5">
-        <span className={cn("h-2 w-2 rounded-sm", accentClass)} aria-hidden />
-        <p className="label-caps">{label}</p>
-      </div>
-      <p className="money-display text-xl leading-none sm:text-2xl">{value}</p>
-      {sub ? <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">{sub}</p> : null}
-    </div>
-  );
 }
 
 type HeroHealthLevel = "on_track" | "tight" | "action_needed";
@@ -189,7 +122,7 @@ function resolveHeroHealthStatus(params: {
 
   return {
     level: "on_track",
-    title: "You're on track",
+    title: "You are on track",
     description: "You have enough to comfortably reach your next income date at your current pace.",
   };
 }
@@ -237,9 +170,8 @@ function SafeToSpendBreakdownTooltip({
                 {line.label}
               </span>
               <span
-                className={`money-display shrink-0 tabular-nums ${
-                  line.kind === "total" ? "font-semibold text-foreground" : "text-foreground"
-                }`}
+                className={`money-display shrink-0 tabular-nums ${line.kind === "total" ? "font-semibold text-foreground" : "text-foreground"
+                  }`}
               >
                 {formatMoney(line.amountCents, currency)}
               </span>
@@ -254,34 +186,46 @@ function SafeToSpendBreakdownTooltip({
 function HeroHealthBlock({ status }: { status: HeroHealthStatus }) {
   const { pillClass, icon: Icon, iconClass } = HERO_HEALTH_UI[status.level];
   return (
-    <div className="mt-4 space-y-2" role="status" aria-live="polite">
+    <div className="mt-2" role="status" aria-live="polite">
       <span className={cn("hero-health-pill", pillClass)}>
         <Icon className={cn("h-3.5 w-3.5 shrink-0", iconClass)} aria-hidden />
         {status.title}
       </span>
-      <p className="max-w-md text-sm leading-relaxed text-[#746A5D]">{status.description}</p>
     </div>
   );
 }
 
-function HeroStat({
+const HERO_METRIC_ACCENTS: Record<string, { bg: string; color: string }> = {
+  income: { bg: "#EFE7F7", color: "#6E4E91" },
+  spent: { bg: "hsl(96 22% 88%)", color: "#4A5C40" },
+  saved: { bg: "#EFE7F7", color: "#6E4E91" },
+  bills: { bg: "#EFE7F7", color: "#6E4E91" },
+};
+
+function HeroMetricCell({
   icon: Icon,
   label,
   value,
-  title,
+  accentKey,
 }: {
   icon: typeof Receipt;
   label: string;
   value: string;
-  title?: string;
+  accentKey: keyof typeof HERO_METRIC_ACCENTS;
 }) {
+  const accent = HERO_METRIC_ACCENTS[accentKey];
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5" title={title}>
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-        <span className="text-[11px] font-medium leading-none">{label}</span>
+    <div className="hero-metric-cell">
+      <div
+        className="hero-metric-icon"
+        style={{ backgroundColor: accent.bg, color: accent.color }}
+      >
+        <Icon aria-hidden />
       </div>
-      <p className="money-amount-sm text-[0.9375rem]">{value}</p>
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium leading-snug text-muted-foreground">{label}</p>
+        <p className="money-amount-sm mt-1 text-[0.9375rem] font-semibold leading-tight">{value}</p>
+      </div>
     </div>
   );
 }
@@ -303,7 +247,6 @@ export function MonthPlanCard({
   monthComparisonLabel = null,
   rolloverBoostCents = 0,
   pausedGoalsBoostCents = 0,
-  carriedOverLabel = null,
 }: MonthPlanCardProps) {
   const isOver = remainingCents < 0;
   const spentPct = calculateSpentPercentage(spentSoFarCents, salaryCents);
@@ -312,8 +255,8 @@ export function MonthPlanCard({
     compact && pace
       ? pace.cycleDailyPaceCents
       : pace?.effectiveDailySpendCents ??
-        pace?.typicalDailySpendCents ??
-        (weeklySafeToSpendCents > 0 ? Math.round(weeklySafeToSpendCents / 7) : 0);
+      pace?.typicalDailySpendCents ??
+      (weeklySafeToSpendCents > 0 ? Math.round(weeklySafeToSpendCents / 7) : 0);
   const today = new Date();
   const nextIncomeDate = cycleConfigured
     ? getNextIncomeDate(incomeCycle, today)
@@ -322,20 +265,17 @@ export function MonthPlanCard({
   const daysLeft = cycleConfigured
     ? getDaysUntilNextIncome(incomeCycle, today)
     : Math.max(0, differenceInCalendarDays(nextIncomeDate, today));
-  const todayLabel = format(today, "EEE, MMM d");
   const emotionalTone = pace?.emotionalTone ?? (isOver ? "tight" : "calm");
-  const availableAfterBills = pace?.availableAfterBillsCents;
-  const showGoalsChip = compact && savingsAllocationCents > 0;
   const dailySpendingPaceCents =
     pace?.typicalDailySpendCents ?? pace?.actualDailySpendCents ?? 0;
   const heroHealth =
     compact && salaryCents > 0
       ? resolveHeroHealthStatus({
-          safeToSpendCents: remainingCents,
-          daysRemaining: daysLeft,
-          dailyPaceCents: dailySpendingPaceCents,
-          salaryCents,
-        })
+        safeToSpendCents: remainingCents,
+        daysRemaining: daysLeft,
+        dailyPaceCents: dailySpendingPaceCents,
+        salaryCents,
+      })
       : null;
   const breakdownTooltip =
     salaryCents > 0 ? (
@@ -359,220 +299,206 @@ export function MonthPlanCard({
         ? "bg-[#9C5A56]"
         : "bg-[#6B7F5E]";
 
+  const compactHeroMetrics =
+    salaryCents > 0 ? (
+      <div className="hero-metric-cells">
+        <HeroMetricCell
+          icon={Wallet}
+          label="Income"
+          value={formatMoney(salaryCents, currency)}
+          accentKey="income"
+        />
+        <HeroMetricCell
+          icon={TrendingUp}
+          label="Spent this month"
+          value={formatMoney(spentSoFarCents, currency)}
+          accentKey="spent"
+        />
+        <HeroMetricCell
+          icon={PiggyBank}
+          label="Saved this month"
+          value={formatMoney(savingsAllocationCents, currency)}
+          accentKey="saved"
+        />
+        <HeroMetricCell
+          icon={Receipt}
+          label="Bills due"
+          value={formatMoney(fixedBillsCents, currency)}
+          accentKey="bills"
+        />
+      </div>
+    ) : null;
+
   return (
     <section
       className={cn(
-        "card-plan animate-fade-in p-7 sm:p-9",
-        compact && "card-plan-hero rounded-[1.875rem] pl-8 sm:pl-11 sm:rounded-[2rem]",
+        "card-plan animate-fade-in",
+        compact ? "p-6 sm:p-8" : "p-7 sm:p-9",
+        compact && "card-plan-hero card-plan-hero--compact rounded-[1.875rem] sm:rounded-[2rem]",
         compact && emotionalTone === "tight" && "card-plan-tight",
         compact && emotionalTone === "supportive" && "card-plan-supportive",
       )}
       aria-labelledby="month-plan-heading"
     >
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <p
-          id="month-plan-heading"
-          className={cn(
-            compact ? "label-caps-hero flex items-center gap-2" : "label-caps flex items-center gap-2",
-          )}
-        >
-          {compact ? (
-            <>
-              <span
-                className={cn(
-                  "inline-block h-2 w-2 shrink-0 rounded-full",
-                  headerStatusDotClass,
-                )}
-                aria-hidden
-              />
-              Left in this cycle
-              {breakdownTooltip}
-            </>
-          ) : (
-            <>
-              Left in this cycle · {format(nextIncomeDate, "MMM").toUpperCase()}
-              {breakdownTooltip}
-            </>
-          )}
-        </p>
-        {compact ? (
-          <p className="text-xs font-normal leading-relaxed text-muted-foreground">
-            {!cycleConfigured ? (
-              INCOME_CYCLE_SETUP_MESSAGE
-            ) : (
-              <>
-                {todayLabel} · {daysLeft} day{daysLeft === 1 ? "" : "s"} remaining
-              </>
-            )}
-          </p>
-        ) : (
-          <div className="flex items-center gap-3">
-            {salaryCents > 0 ? (
-              <p className="hidden text-xs text-muted-foreground sm:block">
-                {formatMoneyCompact(salaryCents, currency)} income
-              </p>
-            ) : null}
-            {onAdjust ? (
-              <button
-                type="button"
-                onClick={onAdjust}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-popover px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-card"
-              >
-                Adjust
-              </button>
-            ) : null}
-          </div>
-        )}
-      </div>
-
-      <div className={cn(compact ? "hero-amount-stage mt-7 sm:mt-8" : "mt-8")}>
-        <div
-          className={cn(
-            "money-hero",
-            isOver ? "text-foreground/90" : "text-foreground",
-            compact
-              ? "text-[clamp(3.75rem,9.5vw,5.85rem)]"
-              : "text-[clamp(3.25rem,8.5vw,5rem)]",
-          )}
-        >
-          <HeroMoney cents={remainingCents} currency={currency} />
-        </div>
-        {compact && salaryCents > 0 ? (
-          <p className="mt-2 text-sm font-normal text-[#746A5D]">
-            Safe to spend for everyday expenses until your next income date
-          </p>
-        ) : null}
-        {compact && carriedOverLabel && rolloverBoostCents > 0 ? (
-          <p className="mt-1.5 text-sm font-medium text-[#6E4E91]">{carriedOverLabel}</p>
-        ) : null}
-        {heroHealth ? <HeroHealthBlock status={heroHealth} /> : null}
-      </div>
-
-      {!compact ? (
-        <div className="mt-8 max-w-md">
-          {!isOver && weeklySafeToSpendCents > 0 ? (
-            <p className="text-body-calm">
-              About{" "}
-              <span className="money-display-md">
-                {formatMoney(weeklySafeToSpendCents, currency)}
-              </span>{" "}
-              per week left this month.
-            </p>
-          ) : null}
-          {isOver ? (
-            <p className="text-[15px] leading-[1.65] text-muted-foreground">
-              About{" "}
-              <span className="money-display-md text-foreground">
-                {formatMoney(Math.abs(remainingCents), currency)}
-              </span>{" "}
-              to reconcile this cycle.
-            </p>
-          ) : null}
-          {salaryCents <= 0 ? (
-            <p className="text-body-calm">
-              Add your monthly income to see what&apos;s left in this cycle.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {compact && salaryCents > 0 && pace ? (
-        <div className="hero-chips-rhythm mt-6 flex gap-4 pt-6 sm:mt-7 sm:gap-6 sm:pt-7">
-          {availableAfterBills != null ? (
-            <HeroStat
-              icon={Receipt}
-              label="After bills"
-              value={formatMoney(availableAfterBills, currency)}
-              title="Income minus upcoming bills before your income date"
-            />
-          ) : null}
-          {showGoalsChip ? (
-            <HeroStat
-              icon={PiggyBank}
-              label="Goals"
-              value={formatMoney(savingsAllocationCents, currency)}
-            />
-          ) : null}
-          {dailyPaceCents > 0 ? (
-            <HeroStat
-              icon={TrendingDown}
-              label="Daily pace"
-              value={`${formatMoney(dailyPaceCents, currency)} / day`}
-            />
-          ) : null}
-          {daysLeft > 0 ? (
-            <HeroStat
-              icon={Calendar}
-              label="Days remaining"
-              value={`${daysLeft} day${daysLeft === 1 ? "" : "s"}`}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {compact && salaryCents > 0 && pace ? (
-        <div className="hero-chip-row mt-6 sm:mt-7">
-          {monthComparisonLabel ? (
-            <span className="hero-chip hero-chip-sage">
-              <TrendingUp className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {monthComparisonLabel}
-            </span>
-          ) : null}
-          {showGoalsChip && heroHealth?.level === "on_track" ? (
-            <span className="hero-chip hero-chip-purple">
-              <Target className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              On track for goals
-            </span>
-          ) : null}
-          {dailyPaceCents > 0 ? (
-            <span className="hero-chip hero-chip-sand">
-              <Calendar className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-              {formatMoney(dailyPaceCents, currency)} / day
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-
-      {salaryCents > 0 && !compact ? (
+      {compact ? (
         <>
-          <div className="mt-6">
-            <PlanSegmentBar
-              salaryCents={salaryCents}
-              fixedBillsCents={fixedBillsCents}
-              savingsAllocationCents={savingsAllocationCents}
-              spentSoFarCents={spentSoFarCents}
-              remainingCents={Math.max(0, remainingCents)}
-            />
-          </div>
+          <div className="hero-top-grid">
+            <div className="hero-top-left">
+              <p
+                id="month-plan-heading"
+                className="label-caps-hero-safe flex items-center gap-2"
+              >
+                <span
+                  className={cn(
+                    "inline-block h-2 w-2 shrink-0 rounded-full",
+                    headerStatusDotClass,
+                  )}
+                  aria-hidden
+                />
+                Safe to spend
+              </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <StatTile
-              label="Bills"
-              value={formatMoneyCompact(fixedBillsCents, currency)}
-              sub={recurringBillsCount > 0 ? `${recurringBillsCount} recurring` : undefined}
-              accentClass="bg-[hsl(var(--segment-bills))]"
-            />
-            <StatTile
-              label="Goals"
-              value={formatMoneyCompact(savingsAllocationCents, currency)}
-              sub="Savings + jars"
-              accentClass="bg-[hsl(var(--segment-goals))]"
-            />
-            <StatTile
-              label="Spent so far"
-              value={formatMoneyCompact(spentSoFarCents, currency)}
-              sub={salaryCents > 0 ? `${spentPct}% of income` : undefined}
-              accentClass="bg-[hsl(var(--segment-spent))]"
-            />
-            <StatTile
-              label="Left in this cycle"
-              value={formatMoneyCompact(Math.max(0, remainingCents), currency)}
-              sub={`Income date ${nextIncomeLabel}`}
-              accentClass="bg-[hsl(var(--segment-safe))]"
-            />
+              <div
+                className={cn(
+                  "money-hero mt-3 sm:mt-4",
+                  isOver ? "text-foreground/90" : "text-foreground",
+                  "text-[clamp(2.85rem,7.5vw,4.65rem)]",
+                )}
+              >
+                <HeroMoney cents={remainingCents} currency={currency} />
+              </div>
+
+              {heroHealth ? <HeroHealthBlock status={heroHealth} /> : null}
+
+              {salaryCents > 0 && dailyPaceCents > 0 ? (
+                <p className="mt-2.5 flex items-center gap-1.5 text-sm font-medium text-[#746A5D]">
+                  <LineChart className="h-3.5 w-3.5 shrink-0 text-[#6E4E91]" aria-hidden />
+                  <span className="money-display-md text-foreground">
+                    {formatMoney(dailyPaceCents, currency)}
+                  </span>
+                  /day recommended pace
+                </p>
+              ) : null}
+
+              {salaryCents <= 0 ? (
+                <p className="mt-3 text-sm leading-relaxed text-[#746A5D]">
+                  Add your monthly income to see what&apos;s left in this cycle.
+                </p>
+              ) : null}
+            </div>
+
+            {compactHeroMetrics}
           </div>
         </>
-      ) : null}
+      ) : (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+            <p
+              id="month-plan-heading"
+              className="label-caps flex items-center gap-2"
+            >
+              Left in this cycle · {format(nextIncomeDate, "MMM").toUpperCase()}
+              {breakdownTooltip}
+            </p>
+            <div className="flex items-center gap-3">
+              {salaryCents > 0 ? (
+                <p className="hidden text-xs text-muted-foreground sm:block">
+                  {formatMoneyCompact(salaryCents, currency)} income
+                </p>
+              ) : null}
+              {onAdjust ? (
+                <button
+                  type="button"
+                  onClick={onAdjust}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-popover px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-card"
+                >
+                  Adjust
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div
+              className={cn(
+                "money-hero",
+                isOver ? "text-foreground/90" : "text-foreground",
+                "text-[clamp(3.25rem,8.5vw,5rem)]",
+              )}
+            >
+              <HeroMoney cents={remainingCents} currency={currency} />
+            </div>
+          </div>
+
+          <div className="mt-8 max-w-md">
+            {!isOver && weeklySafeToSpendCents > 0 ? (
+              <p className="text-body-calm">
+                About{" "}
+                <span className="money-display-md">
+                  {formatMoney(weeklySafeToSpendCents, currency)}
+                </span>{" "}
+                per week left this month.
+              </p>
+            ) : null}
+            {isOver ? (
+              <p className="text-[15px] leading-[1.65] text-muted-foreground">
+                About{" "}
+                <span className="money-display-md text-foreground">
+                  {formatMoney(Math.abs(remainingCents), currency)}
+                </span>{" "}
+                to reconcile this cycle.
+              </p>
+            ) : null}
+            {salaryCents <= 0 ? (
+              <p className="text-body-calm">
+                Add your monthly income to see what&apos;s left in this cycle.
+              </p>
+            ) : null}
+          </div>
+
+          {salaryCents > 0 ? (
+            <>
+              <div className="mt-6">
+                <PlanSegmentBar
+                  salaryCents={salaryCents}
+                  fixedBillsCents={fixedBillsCents}
+                  savingsAllocationCents={savingsAllocationCents}
+                  spentSoFarCents={spentSoFarCents}
+                  remainingCents={Math.max(0, remainingCents)}
+                  ariaLabel="Budget allocation: bills, goals, spent, and left in this cycle"
+                />
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                <PlanStatTile
+                  label="Bills"
+                  value={formatMoneyCompact(fixedBillsCents, currency)}
+                  sub={recurringBillsCount > 0 ? `${recurringBillsCount} recurring` : undefined}
+                  accentClass="bg-[hsl(var(--segment-bills))]"
+                />
+                <PlanStatTile
+                  label="Goals"
+                  value={formatMoneyCompact(savingsAllocationCents, currency)}
+                  sub="Savings + jars"
+                  accentClass="bg-[hsl(var(--segment-goals))]"
+                />
+                <PlanStatTile
+                  label="Spent so far"
+                  value={formatMoneyCompact(spentSoFarCents, currency)}
+                  sub={salaryCents > 0 ? `${spentPct}% of income` : undefined}
+                  accentClass="bg-[hsl(var(--segment-spent))]"
+                />
+                <PlanStatTile
+                  label="Left in this cycle"
+                  value={formatMoneyCompact(Math.max(0, remainingCents), currency)}
+                  sub={`Income date ${nextIncomeLabel}`}
+                  accentClass="bg-[hsl(var(--segment-safe))]"
+                />
+              </div>
+            </>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }

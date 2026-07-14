@@ -123,8 +123,8 @@ export default function SettingsPage() {
       <Helmet>
         <title>Settings - Sova Budget</title>
       </Helmet>
-      <div className="bg-background pb-mobile-nav md:pb-24">
-        <div className="container mx-auto max-w-2xl space-y-4 px-4 pr-mobile-fab pt-5 sm:pt-6 md:pr-4">
+      <div className="flex min-h-dvh flex-col bg-background md:pb-24">
+        <div className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 pr-mobile-fab pt-5 sm:pt-6 md:pr-4">
           <Link
             to="/dashboard"
             className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground touch-manipulation hover:bg-secondary/80 sm:w-auto sm:py-2 sm:text-xs"

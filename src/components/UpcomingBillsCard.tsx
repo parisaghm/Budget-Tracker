@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Lightbulb, Zap } from "lucide-react";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
 import type { RecurringBill } from "@/types/finance";
 import { formatMoney } from "@/utils/money";
 import { formatBillDueDateLabel, getDaysUntil } from "@/utils/recurringBills";
@@ -12,6 +13,12 @@ interface UpcomingBillsCardProps {
   totalDueBeforeSalaryCents: number;
   hasAnyRecurringBills: boolean;
   currency?: string;
+  onMarkPaid?: (bill: RecurringBill) => void;
+  markingBillId?: string | null;
+  /** Max bills shown in the preview list. */
+  maxVisible?: number;
+  /** Optional income date label for non-duplicative subtitle (e.g. "Jun 15"). */
+  nextIncomeDateLabel?: string | null;
 }
 
 function timingLabel(daysUntil: number | null): string {
@@ -26,27 +33,42 @@ function timingLabel(daysUntil: number | null): string {
 
 export function UpcomingBillsCard({
   bills,
-  totalDueBeforeSalaryCents,
+  totalDueBeforeSalaryCents: _totalDueBeforeSalaryCents,
   hasAnyRecurringBills,
   currency = "EUR",
+  onMarkPaid,
+  markingBillId = null,
+  maxVisible = 3,
+  nextIncomeDateLabel = null,
 }: UpcomingBillsCardProps) {
-  const preview = bills.slice(0, 3);
+  const preview = bills.slice(0, maxVisible);
+
+  const subtitle = (() => {
+    if (preview.length === 0) {
+      return !hasAnyRecurringBills
+        ? "No upcoming bills yet."
+        : "No unpaid bills scheduled right now.";
+    }
+    if (nextIncomeDateLabel) {
+      return `${preview.length} bill${preview.length === 1 ? "" : "s"} before ${nextIncomeDateLabel}`;
+    }
+    return `${preview.length} bill${preview.length === 1 ? "" : "s"} coming up`;
+  })();
 
   return (
-    <section className="card-dashboard p-6 sm:p-8" aria-labelledby="upcoming-bills-heading">
+    <section
+      className="card-dashboard dashboard-card-hover dashboard-card-fill w-full rounded-[1.5rem] p-5 lg:rounded-[1.875rem] lg:p-6"
+      aria-labelledby="upcoming-bills-heading"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2
             id="upcoming-bills-heading"
-            className="text-lg font-semibold tracking-[-0.015em] text-[#1A1411] sm:text-[1.125rem]"
+            className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-[1.125rem]"
           >
             Upcoming bills
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">
-            {totalDueBeforeSalaryCents > 0
-              ? `${formatMoney(totalDueBeforeSalaryCents, currency)} before your income date`
-              : "Nothing due before your next income date."}
-          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">{subtitle}</p>
         </div>
         <Link
           to="/bills"
@@ -79,9 +101,29 @@ export function UpcomingBillsCard({
                       {timingLabel(days)} · {formatBillDueDateLabel(bill.nextDueDate)}
                     </p>
                   </div>
-                  <span className="money-amount-sm shrink-0 text-[0.9375rem]">
-                    {formatMoney(bill.amountCents, currency)}
-                  </span>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="money-amount-sm text-[0.9375rem]">
+                      <AnimatedMoney
+                        cents={bill.amountCents}
+                        currency={currency}
+                        variant="inline"
+                        animateOnMount
+                        duration={550}
+                      />
+                    </span>
+                    {onMarkPaid ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 rounded-full border-[#E8DFCC] bg-[#FFFDF8] px-2.5 text-xs text-[#2B221B] hover:bg-[#EFE7F7] hover:text-[#4A3463]"
+                        disabled={markingBillId === bill.id}
+                        onClick={() => onMarkPaid(bill)}
+                      >
+                        {markingBillId === bill.id ? "Saving…" : "Mark as paid"}
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </li>
             );

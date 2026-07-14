@@ -90,7 +90,7 @@ export default function WeeklyReviewPage() {
         <title>Weekly Review</title>
       </Helmet>
 
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-dvh flex-col bg-background">
         <header className="sticky top-0 z-10 border-b border-border/60 bg-background/90 backdrop-blur-xl">
           <div className="container flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
@@ -114,7 +114,7 @@ export default function WeeklyReviewPage() {
           </div>
         </header>
 
-        <main className="container max-w-6xl px-4 pb-mobile-nav pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pb-10 md:pr-6 lg:px-8">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-6 lg:px-8">
           {!hasEnoughData ? (
             <div className="card-elevated p-8 text-center">
               <h2 className="text-xl font-semibold text-foreground mb-2">Not enough data yet</h2>

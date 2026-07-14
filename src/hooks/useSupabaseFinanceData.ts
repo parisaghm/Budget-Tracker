@@ -46,7 +46,8 @@ import {
 } from "@/utils/onboarding";
 import type { IncomeCycle } from "@/types/incomeCycle";
 import {
-  getActiveCycleWindow,
+  getActiveBudgetMonthKey,
+  getCycleWindowDatesForMonthKey,
   getDefaultNextIncomeDateForMonth,
   isIncomeCycleConfigured,
 } from "@/utils/incomeCycle";
@@ -57,6 +58,7 @@ import {
   warnBlockedIncomeWrite,
   type IncomeWriteSource,
 } from "@/utils/budgetIncomeGuard";
+import { isBillReservedInUpcoming, logBillPaymentDebug } from "@/utils/billPayment";
 import { computeSafeToSpendCents } from "@/utils/safeToSpend";
 
 interface StoredData {
@@ -152,6 +154,13 @@ function readCurrentMonthFromLocalStorage(): string {
     // Ignore storage read failures and use current month.
   }
   return fallback;
+}
+
+function readInitialMonth(incomeCycle: IncomeCycle | null | undefined): string {
+  if (incomeCycle && isIncomeCycleConfigured(incomeCycle)) {
+    return getActiveBudgetMonthKey(incomeCycle);
+  }
+  return readCurrentMonthFromLocalStorage();
 }
 
 function writeCurrentMonthToLocalStorage(month: string): void {
@@ -293,6 +302,23 @@ function isRecurringBillsSchemaError(message?: string): boolean {
   );
 }
 
+/**
+ * Budget-month key (YYYY-MM) an expense belongs to for a given date.
+ * Mirrors how new expenses are filed: when an income cycle is configured the
+ * key is the cycle window that contains the date (so a date inside the current
+ * cycle stays in the current budget month even across a calendar-month
+ * boundary); otherwise it is the plain calendar month.
+ */
+function budgetMonthKeyForDate(dateYmd: string, cycle: IncomeCycle | null | undefined): string {
+  const calendarKey = normalizeYearMonthYm(dateYmd.slice(0, 7));
+  if (!isIncomeCycleConfigured(cycle)) return calendarKey;
+  const m = dateYmd.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return calendarKey;
+  const parsed = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(parsed.getTime())) return calendarKey;
+  return getActiveBudgetMonthKey(cycle, parsed);
+}
+
 const initialData: StoredData = {
   budgets: {},
   expenses: [],
@@ -308,12 +334,15 @@ const DEMO_EDIT_MESSAGE =
 function useFinanceDataInternal() {
   const { user } = useAuth();
   const { isDemoMode } = useDemo();
-  const [currentMonth, setCurrentMonth] = useState(readCurrentMonthFromLocalStorage);
+  const financeUserId = user?.id ?? (isDemoMode ? "demo" : "");
+  const monthManuallySelectedRef = useRef(false);
+  const [currentMonth, setCurrentMonthState] = useState(() =>
+    readInitialMonth(readIncomeCycle(financeUserId || undefined)),
+  );
   const [data, setData] = useState<StoredData>(initialData);
   const [isLoading, setIsLoading] = useState(true);
   const [useRecurringBillsLocalFallback, setUseRecurringBillsLocalFallback] = useState(false);
   const [pendingExpenses, setPendingExpenses] = useState<PendingExpenseItem[]>([]);
-  const financeUserId = user?.id ?? (isDemoMode ? "demo" : "");
   const [incomeCycle, setIncomeCycle] = useState<IncomeCycle | null>(() =>
     readIncomeCycle(financeUserId || undefined),
   );
@@ -331,13 +360,30 @@ function useFinanceDataInternal() {
       if (financeUserId) {
         writeIncomeCycle(financeUserId, normalized);
       }
+      if (normalized) {
+        monthManuallySelectedRef.current = false;
+        setCurrentMonthState(getActiveBudgetMonthKey(normalized));
+      }
     },
     [financeUserId],
   );
 
+  const setCurrentMonth = useCallback((month: string) => {
+    monthManuallySelectedRef.current = true;
+    setCurrentMonthState(normalizeYearMonthYm(month));
+  }, []);
+
   useEffect(() => {
+    if (!isIncomeCycleConfigured(incomeCycle)) return;
+    if (monthManuallySelectedRef.current) return;
+    const activeMonth = getActiveBudgetMonthKey(incomeCycle);
+    setCurrentMonthState((prev) => (prev === activeMonth ? prev : activeMonth));
+  }, [incomeCycle]);
+
+  useEffect(() => {
+    if (isIncomeCycleConfigured(incomeCycle)) return;
     writeCurrentMonthToLocalStorage(currentMonth);
-  }, [currentMonth]);
+  }, [currentMonth, incomeCycle]);
 
   const loadFromSupabase = useCallback(
     async (userId: string, options?: { signal?: AbortSignal; showLoading?: boolean }) => {
@@ -926,7 +972,7 @@ function useFinanceDataInternal() {
       if (updates.note !== undefined) patch.note = updates.note?.trim() ? updates.note : null;
 
       if (updates.date !== undefined) {
-        const newMonth = normalizeYearMonthYm(updates.date.slice(0, 7));
+        const newMonth = budgetMonthKeyForDate(updates.date, incomeCycle);
         patch.date = updates.date;
 
         const { data: existingRow, error: existingError } = await supabase
@@ -1043,12 +1089,15 @@ function useFinanceDataInternal() {
         };
       });
 
-      // Do not auto-navigate to another month after an edit — the user stays on
-      // the month they were viewing. The expense will simply disappear from the
-      // current month list (correct behaviour when the date was moved) without
-      // any unexpected page jump.
+      // If the edit moved the expense into a different budget month than the one
+      // being viewed, follow it there so it never silently disappears from the
+      // list. When an income cycle is configured, a date inside the current
+      // cycle resolves to the same month key above, so no navigation happens.
+      if (rowMonthKey && rowMonthKey !== currentMonth) {
+        setCurrentMonth(rowMonthKey);
+      }
     },
-    [isDemoMode, user, data.budgets],
+    [isDemoMode, user, data.budgets, incomeCycle, currentMonth, setCurrentMonth],
   );
 
   const deleteExpense = useCallback(async (id: string) => {
@@ -1323,11 +1372,35 @@ function useFinanceDataInternal() {
         throw new Error("Bill not found");
       }
 
-      await addExpense({
-        amountCents: bill.amountCents,
-        category: bill.category,
-        date: bill.nextDueDate,
-        note: `Paid recurring bill: ${bill.name}${bill.note ? ` — ${bill.note}` : ""}`,
+      const incomeCycleConfigured = isIncomeCycleConfigured(incomeCycle);
+      const cycleWindow = incomeCycleConfigured
+        ? getCycleWindowDatesForMonthKey(incomeCycle!, currentMonth)
+        : null;
+      const nextSalaryDate = incomeCycleConfigured
+        ? format(cycleWindow!.end, "yyyy-MM-dd")
+        : getDefaultNextIncomeDateForMonth(currentMonth);
+      const monthStartIso = incomeCycleConfigured
+        ? format(cycleWindow!.start, "yyyy-MM-dd")
+        : `${currentMonth}-01`;
+      const upcomingBeforePay = getUpcomingBills(
+        data.recurringBills,
+        nextSalaryDate,
+        monthStartIso,
+      );
+      const wasBillReserved = isBillReservedInUpcoming(bill, upcomingBeforePay);
+      const spentBefore = data.expenses
+        .filter((exp) => exp.month === currentMonth)
+        .reduce((sum, exp) => sum + exp.amountCents, 0);
+      const upcomingCentsBefore = upcomingBeforePay.reduce((sum, item) => sum + item.amountCents, 0);
+      const savingsCents = data.savingsGoals.reduce(
+        (sum, goal) => sum + calculateGoalPlan(goal).monthlyRequiredSavingCents,
+        0,
+      );
+      const safeToSpendBefore = computeSafeToSpendCents({
+        incomeForCurrentCycleCents: data.budgets[currentMonth]?.salaryCents ?? 0,
+        spentSoFarCents: spentBefore,
+        upcomingBillsBeforeIncomeDateCents: upcomingCentsBefore,
+        savingsGoalsForCurrentCycleCents: savingsCents,
       });
 
       const nextPaymentsCompleted = (bill.paymentsCompleted ?? 0) + 1;
@@ -1339,7 +1412,172 @@ function useFinanceDataInternal() {
       const nextStatus: BillStatus = seriesComplete ? "skipped" : "upcoming";
       const now = new Date().toISOString();
       const today = now.slice(0, 10);
-      let shouldPersistLocal = useRecurringBillsLocalFallback;
+
+      const budget = data.budgets[currentMonth];
+      const budgetId = budget?.id ?? crypto.randomUUID();
+      const newExpenseId = crypto.randomUUID();
+      const createdAt = now;
+      const expensePayload = {
+        amountCents: bill.amountCents,
+        category: bill.category,
+        date: bill.nextDueDate,
+        note: `Paid recurring bill: ${bill.name}${bill.note ? ` — ${bill.note}` : ""}`,
+      };
+      const optimisticExpense: Expense = {
+        ...expensePayload,
+        id: newExpenseId,
+        budgetMonthId: budgetId,
+        month: currentMonth,
+        createdAt,
+      };
+
+      setData((prev) => {
+        const nextBills = prev.recurringBills.map((item) =>
+          item.id === billId
+            ? {
+                ...item,
+                status: nextStatus,
+                lastPaidDate: today,
+                nextDueDate,
+                paymentsCompleted: nextPaymentsCompleted,
+                updatedAt: now,
+              }
+            : item,
+        );
+        writeRecurringBillsToLocal(user.id, nextBills);
+        return {
+          ...prev,
+          budgets: prev.budgets[currentMonth]
+            ? prev.budgets
+            : {
+                ...prev.budgets,
+                [currentMonth]: {
+                  id: budgetId,
+                  month: currentMonth,
+                  salaryCents: budget?.salaryCents ?? 0,
+                  currency: budget?.currency ?? "EUR",
+                  createdAt,
+                  incomeNote: budget?.incomeNote,
+                },
+              },
+          expenses: [...prev.expenses, optimisticExpense],
+          recurringBills: nextBills,
+        };
+      });
+
+      const upcomingAfterPay = getUpcomingBills(
+        data.recurringBills.map((item) =>
+          item.id === billId
+            ? {
+                ...item,
+                status: nextStatus,
+                lastPaidDate: today,
+                nextDueDate,
+                paymentsCompleted: nextPaymentsCompleted,
+                updatedAt: now,
+              }
+            : item,
+        ),
+        nextSalaryDate,
+        monthStartIso,
+      );
+      const safeToSpendAfter = computeSafeToSpendCents({
+        incomeForCurrentCycleCents: data.budgets[currentMonth]?.salaryCents ?? 0,
+        spentSoFarCents: spentBefore + bill.amountCents,
+        upcomingBillsBeforeIncomeDateCents: upcomingAfterPay.reduce(
+          (sum, item) => sum + item.amountCents,
+          0,
+        ),
+        savingsGoalsForCurrentCycleCents: savingsCents,
+      });
+
+      logBillPaymentDebug({
+        billId: bill.id,
+        billName: bill.name,
+        billAmountCents: bill.amountCents,
+        wasBillReserved,
+        safeToSpendBefore,
+        safeToSpendAfter,
+        paid: true,
+        expensesTotalAfter: spentBefore + bill.amountCents,
+      });
+
+      try {
+        const { error: budgetError } = await supabase.from("budget_months").upsert(
+          {
+            id: budgetId,
+            user_id: user.id,
+            month: currentMonth,
+            salary_cents: budget?.salaryCents ?? 0,
+            currency: budget?.currency ?? "EUR",
+            income_note: budget?.incomeNote ?? null,
+          },
+          { onConflict: "user_id,month" },
+        );
+        if (budgetError) {
+          throw new Error(budgetError.message);
+        }
+
+        const { data: resolvedBudget, error: resolveBudgetError } = await supabase
+          .from("budget_months")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("month", currentMonth)
+          .maybeSingle();
+        if (resolveBudgetError) {
+          throw new Error(resolveBudgetError.message);
+        }
+        if (!resolvedBudget?.id) {
+          throw new Error("Could not resolve budget month after save");
+        }
+
+        const { error: expenseError } = await supabase.from("expenses").insert({
+          id: newExpenseId,
+          user_id: user.id,
+          budget_month_id: resolvedBudget.id,
+          month: currentMonth,
+          amount_cents: expensePayload.amountCents,
+          category: expensePayload.category,
+          date: expensePayload.date,
+          note: expensePayload.note?.trim() ? expensePayload.note : null,
+        });
+        if (expenseError) {
+          throw new Error(expenseError.message);
+        }
+
+        setData((prev) => ({
+          ...prev,
+          expenses: prev.expenses.map((exp) =>
+            exp.id === newExpenseId
+              ? { ...exp, budgetMonthId: resolvedBudget.id }
+              : exp,
+          ),
+        }));
+      } catch (expensePersistError) {
+        const offlineExpense: PendingExpenseItem = {
+          id: `offline-${newExpenseId}`,
+          amountCents: expensePayload.amountCents,
+          category: expensePayload.category,
+          date: expensePayload.date,
+          note: expensePayload.note,
+          month: currentMonth,
+          createdAt,
+        };
+        const nextPending = [...pendingExpenses, offlineExpense];
+        setPendingExpenses(nextPending);
+        writePendingExpensesToLocal(user.id, nextPending);
+        setData((prev) => ({
+          ...prev,
+          expenses: prev.expenses.map((exp) =>
+            exp.id === newExpenseId
+              ? { ...offlineExpense, budgetMonthId: "" }
+              : exp,
+          ),
+        }));
+        if (expensePersistError instanceof Error && hasSupabaseEnv) {
+          console.warn("Bill expense saved offline:", expensePersistError.message);
+        }
+      }
 
       if (!useRecurringBillsLocalFallback) {
         const { error } = await supabase
@@ -1357,34 +1595,24 @@ function useFinanceDataInternal() {
         if (error) {
           if (isRecurringBillsSchemaError(error.message)) {
             setUseRecurringBillsLocalFallback(true);
-            shouldPersistLocal = true;
           } else {
             throw new Error(error.message);
           }
         }
       }
-
-      setData((prev) => ({
-        ...prev,
-        recurringBills: (() => {
-          const nextBills = prev.recurringBills.map((item) =>
-            item.id === billId
-              ? {
-                  ...item,
-                  status: nextStatus,
-                  lastPaidDate: today,
-                  nextDueDate,
-                  paymentsCompleted: nextPaymentsCompleted,
-                  updatedAt: now,
-                }
-              : item,
-          );
-          writeRecurringBillsToLocal(user.id, nextBills);
-          return nextBills;
-        })(),
-      }));
     },
-    [addExpense, data.recurringBills, isDemoMode, useRecurringBillsLocalFallback, user],
+    [
+      currentMonth,
+      data.budgets,
+      data.expenses,
+      data.recurringBills,
+      data.savingsGoals,
+      incomeCycle,
+      isDemoMode,
+      pendingExpenses,
+      useRecurringBillsLocalFallback,
+      user,
+    ],
   );
 
   const addCustomCategory = useCallback(
@@ -1597,7 +1825,7 @@ function useFinanceDataInternal() {
   const remainingIncomeCents = (currentMonthData.budget?.salaryCents || 0) - totalSpentCents;
   const incomeCycleConfigured = isIncomeCycleConfigured(incomeCycle);
   const cycleWindow = incomeCycleConfigured
-    ? getActiveCycleWindow(incomeCycle, new Date())
+    ? getCycleWindowDatesForMonthKey(incomeCycle!, currentMonth)
     : null;
   const nextSalaryDate = incomeCycleConfigured
     ? format(cycleWindow!.end, "yyyy-MM-dd")

@@ -7,6 +7,8 @@ export interface SafeToSpendInput {
   savingsGoalsForCurrentCycleCents: number;
   rolloverBoostCents?: number;
   pausedGoalsBoostCents?: number;
+  /** Cents moved from goal allocations back into spending this cycle. */
+  goalReallocationBoostCents?: number;
 }
 
 /** Safe money left to spend in the current income cycle. */
@@ -18,11 +20,12 @@ export function computeSafeToSpendCents(input: SafeToSpendInput): number {
     savingsGoalsForCurrentCycleCents,
     rolloverBoostCents = 0,
     pausedGoalsBoostCents = 0,
+    goalReallocationBoostCents = 0,
   } = input;
 
   const activeSavingsCents = Math.max(
     0,
-    savingsGoalsForCurrentCycleCents - pausedGoalsBoostCents,
+    savingsGoalsForCurrentCycleCents - pausedGoalsBoostCents - goalReallocationBoostCents,
   );
 
   return (
@@ -62,6 +65,7 @@ export interface SafeToSpendBreakdown {
   savingsAllocationCents: number;
   rolloverBoostCents?: number;
   pausedGoalsBoostCents?: number;
+  goalReallocationBoostCents?: number;
 }
 
 export interface SafeToSpendBreakdownLine {
@@ -80,9 +84,13 @@ export function buildSafeToSpendBreakdownLines(
     savingsAllocationCents,
     rolloverBoostCents = 0,
     pausedGoalsBoostCents = 0,
+    goalReallocationBoostCents = 0,
   } = breakdown;
 
-  const activeSavingsCents = Math.max(0, savingsAllocationCents - pausedGoalsBoostCents);
+  const activeSavingsCents = Math.max(
+    0,
+    savingsAllocationCents - pausedGoalsBoostCents - goalReallocationBoostCents,
+  );
   const lines: SafeToSpendBreakdownLine[] = [
     { label: "Income", amountCents: salaryCents, kind: "income" },
   ];
@@ -126,6 +134,7 @@ export function buildSafeToSpendBreakdownLines(
     savingsGoalsForCurrentCycleCents: savingsAllocationCents,
     rolloverBoostCents,
     pausedGoalsBoostCents,
+    goalReallocationBoostCents,
   });
 
   lines.push({

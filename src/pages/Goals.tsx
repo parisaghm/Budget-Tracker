@@ -23,6 +23,7 @@ export default function GoalsPage() {
     deleteSavingsGoal,
     addExpense,
     allCategories,
+    incomeCycle,
   } = useSupabaseFinanceData();
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
@@ -36,16 +37,17 @@ export default function GoalsPage() {
         <title>Goals · Sova Budget</title>
         <meta name="description" content="Track savings goals at your own pace." />
       </Helmet>
-      <div className="min-h-screen bg-background">
+      <div className="flex min-h-dvh flex-col bg-background">
         <AppShellHeader
           title="Goals"
           subtitle="Save toward what matters"
           currency={activeCurrency}
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
+          incomeCycle={incomeCycle}
           contentMaxWidth="max-w-2xl"
         />
-        <main className="container max-w-2xl px-4 pb-mobile-nav pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pb-10 md:pr-4 lg:px-8">
+        <main className="mx-auto w-full max-w-2xl flex-1 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-4 lg:px-8">
           <SavingsGoals
             goals={savingsGoals}
             remainingCents={adjustedRemaining}
