@@ -230,6 +230,53 @@ function writeRecurringBillsToLocal(userId: string, bills: RecurringBill[]): voi
   }
 }
 
+function recurringBillToSupabaseRow(bill: RecurringBill, userId: string) {
+  return {
+    id: bill.id,
+    user_id: userId,
+    name: bill.name,
+    amount_cents: bill.amountCents,
+    category: bill.category,
+    due_day: bill.dueDay,
+    frequency: bill.frequency,
+    status: bill.status,
+    last_paid_date: bill.lastPaidDate ?? null,
+    next_due_date: bill.nextDueDate,
+    series_start_date: bill.seriesStartDate ?? bill.nextDueDate,
+    payment_count: bill.paymentCount ?? null,
+    payments_completed: bill.paymentsCompleted ?? 0,
+    note: bill.note?.trim() ? bill.note : null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function migrateLocalOnlyRecurringBills(
+  userId: string,
+  localBills: RecurringBill[],
+  remoteIds: Set<string>,
+): Promise<number> {
+  const localOnly = localBills.filter((bill) => !remoteIds.has(bill.id));
+  if (!localOnly.length) return 0;
+
+  let migrated = 0;
+  for (const bill of localOnly) {
+    const { error } = await supabase
+      .from("recurring_bills")
+      .upsert(recurringBillToSupabaseRow(bill, userId), { onConflict: "id" });
+    if (!error) {
+      migrated += 1;
+    } else if (import.meta.env.DEV && !isRecurringBillsSchemaError(error.message)) {
+      console.warn("[finance] recurring bill migration failed", bill.name, error.message);
+    }
+  }
+
+  if (import.meta.env.DEV && migrated > 0) {
+    console.debug("[finance] migrated local recurring bills to Supabase", migrated);
+  }
+
+  return migrated;
+}
+
 function categoryLimitsStorageKey(userId: string): string {
   return `bt_category_limits_${userId}`;
 }
@@ -353,6 +400,9 @@ export interface FinanceDiagnosticsSnapshot {
   savingsCents: number;
   billsCents: number;
   settingsHydrated: boolean;
+  recurringBillsCount: number;
+  upcomingBillsCount: number;
+  localOnlyRecurringBillsCount: number;
 }
 
 function useFinanceDataInternal() {
@@ -375,6 +425,7 @@ function useFinanceDataInternal() {
     isDemoMode ? "demo" : "default_current_month",
   );
   const [settingsSource, setSettingsSource] = useState<SettingsPersistenceSource>("none");
+  const [localOnlyRecurringBillsCount, setLocalOnlyRecurringBillsCount] = useState(0);
   /** Discards stale `loadFromSupabase` results when a newer load started (e.g. onboarding sync vs initial fetch). */
   const financeLoadGenerationRef = useRef(0);
 
@@ -635,6 +686,15 @@ function useFinanceDataInternal() {
         ));
         const localRecurringBills = readRecurringBillsFromLocal(userId);
         const shouldFallback = isRecurringBillsSchemaError(recurringBillsRes.error?.message);
+        const remoteBillIds = new Set(recurringBillsFromDb.map((bill) => bill.id));
+        const localOnlyCount = shouldFallback
+          ? localRecurringBills.length
+          : localRecurringBills.filter((bill) => !remoteBillIds.has(bill.id)).length;
+
+        if (!shouldFallback && hasSupabaseEnv && localOnlyCount > 0) {
+          await migrateLocalOnlyRecurringBills(userId, localRecurringBills, remoteBillIds);
+        }
+
         const recurringBills = shouldFallback
           ? localRecurringBills
           : (() => {
@@ -665,6 +725,7 @@ function useFinanceDataInternal() {
         }
 
         setUseRecurringBillsLocalFallback(shouldFallback);
+        setLocalOnlyRecurringBillsCount(localOnlyCount);
         setPendingExpenses(localPendingExpenses);
 
         setData({
@@ -1294,22 +1355,9 @@ function useFinanceDataInternal() {
         return newBill;
       }
 
-      const { error } = await supabase.from("recurring_bills").insert({
-        id: newBill.id,
-        user_id: user.id,
-        name: newBill.name,
-        amount_cents: newBill.amountCents,
-        category: newBill.category,
-        due_day: newBill.dueDay,
-        frequency: newBill.frequency,
-        status: newBill.status,
-        last_paid_date: newBill.lastPaidDate ?? null,
-        next_due_date: newBill.nextDueDate,
-        series_start_date: newBill.seriesStartDate ?? newBill.nextDueDate,
-        payment_count: newBill.paymentCount ?? null,
-        payments_completed: newBill.paymentsCompleted ?? 0,
-        note: newBill.note?.trim() ? newBill.note : null,
-      });
+      const { error } = await supabase
+        .from("recurring_bills")
+        .insert(recurringBillToSupabaseRow(newBill, user.id));
 
       if (error) {
         if (import.meta.env.DEV) {
@@ -1989,18 +2037,24 @@ function useFinanceDataInternal() {
       savingsCents: savingsGoalAllocationCents,
       billsCents: upcomingUnpaidBillsCents,
       settingsHydrated,
+      recurringBillsCount: data.recurringBills.length,
+      upcomingBillsCount: upcomingBills.length,
+      localOnlyRecurringBillsCount,
     }),
     [
       currentMonth,
       currentMonthData.budget?.salaryCents,
       cycleWindow,
+      data.recurringBills.length,
       financeUserId,
       incomeCycleConfigured,
+      localOnlyRecurringBillsCount,
       monthSelectionSource,
       settingsHydrated,
       settingsSource,
       savingsGoalAllocationCents,
       totalSpentCents,
+      upcomingBills.length,
       upcomingUnpaidBillsCents,
     ],
   );

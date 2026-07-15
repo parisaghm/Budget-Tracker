@@ -21,6 +21,9 @@ export function FinanceDiagnostics({ snapshot }: FinanceDiagnosticsProps) {
     { label: "Spent", value: formatMoney(snapshot.spentCents) },
     { label: "Savings", value: formatMoney(snapshot.savingsCents) },
     { label: "Bills due", value: formatMoney(snapshot.billsCents) },
+    { label: "Recurring bills (total)", value: String(snapshot.recurringBillsCount) },
+    { label: "Upcoming bills (filtered)", value: String(snapshot.upcomingBillsCount) },
+    { label: "Local-only bills pending sync", value: String(snapshot.localOnlyRecurringBillsCount) },
     { label: "Settings hydrated", value: snapshot.settingsHydrated ? "yes" : "pending" },
   ];
 
