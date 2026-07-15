@@ -67,6 +67,7 @@ import {
   type IncomeWriteSource,
 } from "@/utils/budgetIncomeGuard";
 import { isBillReservedInUpcoming, logBillPaymentDebug } from "@/utils/billPayment";
+import { buildInheritedBudgetForMonth } from "@/utils/budgetCycleCarryForward";
 import { computeSafeToSpendCents } from "@/utils/safeToSpend";
 
 interface StoredData {
@@ -426,6 +427,7 @@ function useFinanceDataInternal() {
   );
   const [settingsSource, setSettingsSource] = useState<SettingsPersistenceSource>("none");
   const [localOnlyRecurringBillsCount, setLocalOnlyRecurringBillsCount] = useState(0);
+  const carryForwardAttemptedRef = useRef<Set<string>>(new Set());
   /** Discards stale `loadFromSupabase` results when a newer load started (e.g. onboarding sync vs initial fetch). */
   const financeLoadGenerationRef = useRef(0);
 
@@ -474,10 +476,22 @@ function useFinanceDataInternal() {
       setSettingsSource(resolvedSettingsSource);
 
       if (resolvedCycle) {
-        monthManuallySelectedRef.current = false;
         const activeMonth = getActiveBudgetMonthKey(resolvedCycle);
-        setCurrentMonthState(activeMonth);
-        setMonthSelectionSource("income_cycle_active");
+        const remoteMonth = remote?.selectedMonth ?? null;
+        const useRemoteMonth =
+          remoteMonth &&
+          /^\d{4}-\d{2}$/.test(remoteMonth) &&
+          remoteMonth !== activeMonth;
+
+        if (useRemoteMonth) {
+          monthManuallySelectedRef.current = true;
+          setCurrentMonthState(normalizeYearMonthYm(remoteMonth));
+          setMonthSelectionSource("manual_navigation");
+        } else {
+          monthManuallySelectedRef.current = false;
+          setCurrentMonthState(activeMonth);
+          setMonthSelectionSource("income_cycle_active");
+        }
       } else {
         const localMonth = readCurrentMonthFromLocalStorage();
         const remoteMonth = remote?.selectedMonth ?? null;
@@ -535,7 +549,7 @@ function useFinanceDataInternal() {
       setMonthSelectionSource(
         isIncomeCycleConfigured(incomeCycle) ? "manual_navigation" : "supabase_selected_month",
       );
-      if (financeUserId && !isDemoMode && hasSupabaseEnv && !isIncomeCycleConfigured(incomeCycle)) {
+      if (financeUserId && !isDemoMode && hasSupabaseEnv) {
         void upsertUserSelectedMonth(financeUserId, normalized).then((ok) => {
           if (ok) setSettingsSource("supabase");
         });
@@ -899,6 +913,13 @@ function useFinanceDataInternal() {
   );
 
   const currentMonthData = getMonthData(currentMonth);
+  const incomeCycleConfigured = isIncomeCycleConfigured(incomeCycle);
+  const effectiveBudget = useMemo(() => {
+    if (!incomeCycleConfigured) {
+      return currentMonthData.budget;
+    }
+    return buildInheritedBudgetForMonth(data.budgets, currentMonth);
+  }, [currentMonth, currentMonthData.budget, data.budgets, incomeCycleConfigured]);
 
   const updateMonthlyIncome = useCallback(
     async (
@@ -1026,6 +1047,54 @@ function useFinanceDataInternal() {
     },
     [currentMonth, updateMonthlyIncome],
   );
+
+  useEffect(() => {
+    if (isDemoMode || !user || !hasSupabaseEnv || !settingsHydrated || !incomeCycleConfigured) {
+      return;
+    }
+
+    const storedSalary = data.budgets[currentMonth]?.salaryCents ?? 0;
+    if (storedSalary > 0) {
+      return;
+    }
+
+    const inherited = buildInheritedBudgetForMonth(data.budgets, currentMonth);
+    if (!inherited || inherited.salaryCents <= 0 || inherited.month !== currentMonth) {
+      return;
+    }
+
+    const attemptKey = `${user.id}:${currentMonth}`;
+    if (carryForwardAttemptedRef.current.has(attemptKey)) {
+      return;
+    }
+    carryForwardAttemptedRef.current.add(attemptKey);
+
+    void runWithIncomeWrite("cycle_carry_forward", () => {
+      void updateMonthlyIncome(
+        currentMonth,
+        inherited.salaryCents,
+        inherited.incomeNote,
+        inherited.currency,
+        { source: "cycle_carry_forward" },
+      ).then(() => {
+        if (import.meta.env.DEV) {
+          console.debug(
+            "[finance] carried forward income to new cycle month",
+            currentMonth,
+            inherited.salaryCents,
+          );
+        }
+      });
+    });
+  }, [
+    currentMonth,
+    data.budgets,
+    incomeCycleConfigured,
+    isDemoMode,
+    settingsHydrated,
+    updateMonthlyIncome,
+    user,
+  ]);
 
   const addExpense = useCallback(
     async (expense: Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">) => {
@@ -1990,8 +2059,8 @@ function useFinanceDataInternal() {
   );
 
   const totalSpentCents = currentMonthData.expenses.reduce((sum, exp) => sum + exp.amountCents, 0);
-  const remainingIncomeCents = (currentMonthData.budget?.salaryCents || 0) - totalSpentCents;
-  const incomeCycleConfigured = isIncomeCycleConfigured(incomeCycle);
+  const effectiveSalaryCents = effectiveBudget?.salaryCents ?? 0;
+  const remainingIncomeCents = effectiveSalaryCents - totalSpentCents;
   const cycleWindow = incomeCycleConfigured
     ? getCycleWindowDatesForMonthKey(incomeCycle!, currentMonth)
     : null;
@@ -2009,7 +2078,7 @@ function useFinanceDataInternal() {
     0,
   );
   const safeToSpendCents = computeSafeToSpendCents({
-    incomeForCurrentCycleCents: currentMonthData.budget?.salaryCents ?? 0,
+    incomeForCurrentCycleCents: effectiveSalaryCents,
     spentSoFarCents: totalSpentCents,
     upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
     savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
@@ -2032,7 +2101,7 @@ function useFinanceDataInternal() {
       incomeCycleConfigured,
       cycleStart: cycleWindow ? format(cycleWindow.start, "yyyy-MM-dd") : null,
       cycleEnd: cycleWindow ? format(cycleWindow.end, "yyyy-MM-dd") : null,
-      incomeCents: currentMonthData.budget?.salaryCents ?? 0,
+      incomeCents: effectiveSalaryCents,
       spentCents: totalSpentCents,
       savingsCents: savingsGoalAllocationCents,
       billsCents: upcomingUnpaidBillsCents,
@@ -2044,6 +2113,7 @@ function useFinanceDataInternal() {
     [
       currentMonth,
       currentMonthData.budget?.salaryCents,
+      effectiveSalaryCents,
       cycleWindow,
       data.recurringBills.length,
       financeUserId,
@@ -2444,7 +2514,7 @@ function useFinanceDataInternal() {
     currentMonth,
     setCurrentMonth,
     getMonthData,
-    budget: currentMonthData.budget,
+    budget: effectiveBudget,
     expenses: currentMonthData.expenses,
     allExpenses: data.expenses,
     totalSpentCents,
