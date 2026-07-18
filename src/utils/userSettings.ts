@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import type { IncomeCycle } from "@/types/incomeCycle";
+import { isIncomeCyclePreset, type IncomeCycle } from "@/types/incomeCycle";
 import { isIncomeCycleConfigured } from "@/utils/incomeCycle";
 
 export type MonthSelectionSource =
@@ -20,11 +20,13 @@ export interface UserFinanceSettings {
 
 function parseIncomeCycle(raw: unknown): IncomeCycle | null {
   if (!raw || typeof raw !== "object") return null;
-  const parsed = raw as Partial<IncomeCycle>;
+  const parsed = raw as { preset?: unknown; day?: unknown };
+  // Deprecated presets (weekly / biweekly / last working day) resolve to null
+  // so Settings stays unselected; stored JSON is left untouched until the user saves.
+  if (!isIncomeCyclePreset(parsed.preset)) return null;
   const cycle: IncomeCycle = {
-    preset: parsed.preset as IncomeCycle["preset"],
-    day: parsed.day,
-    anchorDate: parsed.anchorDate,
+    preset: parsed.preset,
+    day: typeof parsed.day === "number" ? parsed.day : undefined,
   };
   return isIncomeCycleConfigured(cycle) ? cycle : null;
 }

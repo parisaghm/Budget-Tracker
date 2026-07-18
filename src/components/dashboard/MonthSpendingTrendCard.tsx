@@ -2,7 +2,8 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { Wallet } from "lucide-react";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
 import type { Expense } from "@/types/finance";
-import { formatMoney } from "@/utils/money";
+import type { IncomeCycle } from "@/types/incomeCycle";
+import { formatMoney, getCurrencySymbol } from "@/utils/money";
 import {
   buildMonthSpendingTrend,
   type MonthTrendView,
@@ -14,49 +15,94 @@ interface MonthSpendingTrendCardProps {
   expenses: Expense[];
   currentMonth: string;
   currency?: string;
+  incomeCycle?: IncomeCycle | null;
+  cycleStartIso?: string | null;
+  cycleEndIso?: string | null;
   calmMode?: boolean;
+}
+
+function formatAxisLabel(cents: number, currency: string): string {
+  const euros = cents / 100;
+  if (euros >= 1000) {
+    return `${getCurrencySymbol(currency)}${(euros / 1000).toFixed(euros % 1000 === 0 ? 0 : 1)}k`;
+  }
+  return `${getCurrencySymbol(currency)}${euros % 1 === 0 ? euros.toFixed(0) : euros.toFixed(2)}`;
 }
 
 export function MonthSpendingTrendCard({
   expenses,
   currentMonth,
   currency = "EUR",
+  incomeCycle = null,
+  cycleStartIso = null,
+  cycleEndIso = null,
   calmMode = false,
 }: MonthSpendingTrendCardProps) {
   const [view, setView] = useState<MonthTrendView>("weekly");
   const prefersReducedMotion = usePrefersReducedMotion();
 
   const trendData = useMemo(
-    () => buildMonthSpendingTrend({ expenses, currentMonth, view }),
-    [expenses, currentMonth, view],
+    () =>
+      buildMonthSpendingTrend({
+        expenses,
+        currentMonth,
+        view,
+        incomeCycle,
+        cycleStartIso,
+        cycleEndIso,
+      }),
+    [expenses, currentMonth, view, incomeCycle, cycleStartIso, cycleEndIso],
   );
 
-  const { buckets, totalSpentCents, monthLabel, maxBucketCents } = trendData;
-  const columnCount = buckets.length;
+  const { buckets, totalSpentCents, cycleLabel, yAxisTicksCents } = trendData;
+  const yAxisMaxCents = yAxisTicksCents[yAxisTicksCents.length - 1] ?? 1;
   const hasSpending = totalSpentCents > 0;
+  const currencySymbol = getCurrencySymbol(currency);
+
+  const chartSummary = hasSpending
+    ? `Spent ${formatMoney(totalSpentCents, currency)} across ${buckets.length} ${view === "weekly" ? "weeks" : "days"} in the ${cycleLabel} window.`
+    : `No spending recorded for the ${cycleLabel} window.`;
 
   return (
     <section
       className={cn(
-        "month-trend-card week-pace-mobile card-dashboard dashboard-card-hover w-full rounded-[1.5rem] p-5 lg:rounded-[1.875rem] lg:p-6",
+        "month-trend-card card-dashboard dashboard-card-hover w-full rounded-[1.5rem] p-5 lg:rounded-[1.875rem] lg:p-6",
         calmMode && "opacity-[0.98]",
         !hasSpending && "month-trend-card--empty",
       )}
       aria-labelledby="month-spending-trend-heading"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      <div className="month-trend-header">
+        <div className="month-trend-header__left">
           <h2
             id="month-spending-trend-heading"
             className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411]"
           >
             Monthly spending trend
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">
-            {monthLabel} · month to date
-          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">{cycleLabel}</p>
+
+          {hasSpending ? (
+            <div className="month-trend-toggle" role="group" aria-label="Spending trend view">
+              {(["weekly", "daily"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={view === option}
+                  onClick={() => setView(option)}
+                  className={cn(
+                    "month-trend-toggle__pill",
+                    view === option && "month-trend-toggle__pill--active",
+                  )}
+                >
+                  {option === "weekly" ? "Weekly" : "Daily"}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <div className="shrink-0 text-right">
+
+        <div className="month-trend-header__right">
           <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#746A5D]">
             Spent
           </p>
@@ -69,28 +115,16 @@ export function MonthSpendingTrendCard({
               duration={600}
             />
           </p>
+          <button
+            type="button"
+            className="month-trend-unit-select"
+            aria-label={`Chart unit: amount in ${currency}`}
+            disabled
+          >
+            Amount ({currencySymbol})
+          </button>
         </div>
       </div>
-
-      {hasSpending ? (
-        <div className="mt-3 flex gap-2">
-          {(["weekly", "daily"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setView(option)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                view === option
-                  ? "border-[#6E4E91]/30 bg-[#EFE7F7] text-[#4A3463]"
-                  : "border-[#E8DFCC] bg-transparent text-[#746A5D] hover:bg-[#FFFDF8]",
-              )}
-            >
-              {option === "weekly" ? "Weekly" : "Daily"}
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       <div className="month-trend-body">
         {!hasSpending ? (
@@ -100,69 +134,117 @@ export function MonthSpendingTrendCard({
             </div>
             <p className="text-sm font-medium text-[#2B221B]">No spending recorded yet</p>
             <p className="mt-1 text-sm leading-relaxed text-[#746A5D]">
-              Your trend will appear here after the first expense for this month.
+              Your trend will appear here after the first expense for this cycle.
             </p>
             <p className="mt-3 rounded-full border border-[#E8DFCC] bg-[#FFFDF8] px-3 py-1 text-xs font-medium text-[#6E4E91]">
               Add your first expense to start the chart
             </p>
           </div>
         ) : (
-          <div className="month-trend-chart-area">
-            <div
-              className="grid gap-1.5 sm:gap-2"
-              style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
-            >
-              {buckets.map((bucket, index) => {
-                const heightPct = Math.max(
-                  14,
-                  Math.round((bucket.amountCents / maxBucketCents) * 100),
-                );
-                const barDelayMs = index * 45;
+          <div
+            className={cn(
+              "month-trend-chart",
+              view === "daily" && "month-trend-chart--daily",
+            )}
+            role="img"
+            aria-label={chartSummary}
+          >
+            <p className="sr-only">{chartSummary}</p>
 
-                return (
-                  <div
-                    key={bucket.key}
-                    className="flex min-w-0 flex-col items-center gap-1.5 sm:gap-2"
-                  >
-                    <p
-                      className={cn(
-                        "money-amount-sm hidden h-4 text-[10px] leading-none sm:block sm:text-[11px]",
-                        bucket.isCurrent ? "text-[#6E4E91]" : "text-[#2B221B]/80",
-                      )}
-                    >
-                      {bucket.amountCents > 0 ? formatMoney(bucket.amountCents, currency) : ""}
-                    </p>
-                    <div className="week-pace-bar-track relative w-full overflow-hidden rounded-2xl sm:h-[5.5rem]">
-                      {bucket.amountCents > 0 ? (
-                        <div
+            <div className="month-trend-chart__plot">
+              <div className="month-trend-chart__y-axis" aria-hidden>
+                {[...yAxisTicksCents].reverse().map((tick) => (
+                  <span key={tick} className="month-trend-chart__y-label">
+                    {formatAxisLabel(tick, currency)}
+                  </span>
+                ))}
+              </div>
+
+              <div
+                className={cn(
+                  "month-trend-chart__bars-wrap",
+                  view === "daily" && "month-trend-chart__bars-wrap--scroll",
+                )}
+              >
+                <div
+                  className="month-trend-chart__grid"
+                  style={{ ["--y-ticks" as string]: yAxisTicksCents.length }}
+                  aria-hidden
+                >
+                  {[...yAxisTicksCents].reverse().map((tick) => (
+                    <div key={tick} className="month-trend-chart__grid-line" />
+                  ))}
+                </div>
+
+                <div
+                  className="month-trend-chart__bars"
+                  style={{
+                    ["--bar-count" as string]: buckets.length,
+                    gridTemplateColumns:
+                      view === "daily"
+                        ? `repeat(${buckets.length}, minmax(2.25rem, 1fr))`
+                        : `repeat(${buckets.length}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {buckets.map((bucket, index) => {
+                    const heightPct =
+                      bucket.amountCents > 0
+                        ? Math.max(4, Math.round((bucket.amountCents / yAxisMaxCents) * 100))
+                        : 0;
+                    const barDelayMs = index * 45;
+
+                    return (
+                      <div key={bucket.key} className="month-trend-chart__column">
+                        <p
                           className={cn(
-                            "week-pace-bar-spent absolute inset-x-0 bottom-0 rounded-2xl",
-                            !prefersReducedMotion && "week-pace-bar-spent--animate",
-                            bucket.isCurrent && "ring-1 ring-[#6E4E91]/25",
+                            "month-trend-chart__amount",
+                            bucket.isCurrent && "month-trend-chart__amount--current",
                           )}
-                          style={
-                            prefersReducedMotion
-                              ? { height: `${heightPct}%` }
-                              : ({
-                                  ["--bar-target-height" as string]: `${heightPct}%`,
-                                  ["--bar-delay" as string]: `${barDelayMs}ms`,
-                                  ["--bar-duration" as string]: "500ms",
-                                } as CSSProperties)
-                          }
-                        />
-                      ) : null}
-                    </div>
-                    <p
-                      className={cn(
-                        "week-pace-day-label text-[11px] font-medium sm:text-xs sm:font-normal",
-                        bucket.isCurrent ? "text-[#6E4E91]" : "text-[#746A5D]",
-                      )}
-                    >
-                      {bucket.label}
-                    </p>
-                  </div>
-                );
-              })}
+                        >
+                          {bucket.amountCents > 0
+                            ? formatMoney(bucket.amountCents, currency)
+                            : ""}
+                        </p>
+
+                        <div className="month-trend-chart__bar-area">
+                          {bucket.amountCents > 0 ? (
+                            <div
+                              className={cn(
+                                "month-trend-chart__bar",
+                                !prefersReducedMotion && "month-trend-chart__bar--animate",
+                                bucket.isCurrent && "month-trend-chart__bar--current",
+                              )}
+                              style={
+                                prefersReducedMotion
+                                  ? { height: `${heightPct}%` }
+                                  : ({
+                                      ["--bar-target-height" as string]: `${heightPct}%`,
+                                      ["--bar-delay" as string]: `${barDelayMs}ms`,
+                                      ["--bar-duration" as string]: "500ms",
+                                    } as CSSProperties)
+                              }
+                            />
+                          ) : null}
+                        </div>
+
+                        <div className="month-trend-chart__x-label">
+                          <span
+                            className={cn(
+                              "month-trend-chart__x-primary",
+                              bucket.isCurrent && "month-trend-chart__x-primary--current",
+                            )}
+                          >
+                            {bucket.label}
+                          </span>
+                          {bucket.dateRangeLabel ? (
+                            <span className="month-trend-chart__x-range">{bucket.dateRangeLabel}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -1,28 +1,24 @@
 import {
-  addDays,
   addMonths,
-  addWeeks,
   differenceInCalendarDays,
   endOfMonth,
   format,
-  getDay,
   getDaysInMonth,
-  isWeekend,
   parseISO,
   setDate,
   startOfDay,
   startOfMonth,
-  subDays,
 } from "date-fns";
-import type { IncomeCycle, IncomeCyclePreset } from "@/types/incomeCycle";
+import {
+  isIncomeCyclePreset,
+  type IncomeCycle,
+  type IncomeCyclePreset,
+} from "@/types/incomeCycle";
 
 export function isIncomeCycleConfigured(cycle: IncomeCycle | null | undefined): cycle is IncomeCycle {
-  if (!cycle?.preset) return false;
+  if (!cycle?.preset || !isIncomeCyclePreset(cycle.preset)) return false;
   if (cycle.preset === "custom") {
     return typeof cycle.day === "number" && cycle.day >= 1 && cycle.day <= 31;
-  }
-  if (cycle.preset === "biweekly" || cycle.preset === "weekly") {
-    return Boolean(cycle.anchorDate && /^\d{4}-\d{2}-\d{2}$/.test(cycle.anchorDate));
   }
   return true;
 }
@@ -44,14 +40,6 @@ function lastCalendarDayOfMonth(year: number, monthIndex: number): Date {
   return startOfDay(endOfMonth(new Date(year, monthIndex, 1)));
 }
 
-function lastBusinessDayOfMonth(year: number, monthIndex: number): Date {
-  let cursor = lastCalendarDayOfMonth(year, monthIndex);
-  while (isWeekend(cursor)) {
-    cursor = subDays(cursor, 1);
-  }
-  return cursor;
-}
-
 function resolveMonthlyDay(cycle: IncomeCycle): number {
   switch (cycle.preset) {
     case "monthly_1":
@@ -66,74 +54,30 @@ function resolveMonthlyDay(cycle: IncomeCycle): number {
 }
 
 function monthlyIncomeDateForMonth(cycle: IncomeCycle, year: number, monthIndex: number): Date {
-  switch (cycle.preset) {
-    case "monthly_last":
-      return lastCalendarDayOfMonth(year, monthIndex);
-    case "monthly_last_business":
-      return lastBusinessDayOfMonth(year, monthIndex);
-    default:
-      return dateOnDayOfMonth(year, monthIndex, resolveMonthlyDay(cycle));
+  if (cycle.preset === "monthly_last") {
+    return lastCalendarDayOfMonth(year, monthIndex);
   }
-}
-
-function isMonthlyPreset(preset: IncomeCyclePreset): boolean {
-  return (
-    preset === "monthly_1" ||
-    preset === "monthly_15" ||
-    preset === "monthly_last" ||
-    preset === "monthly_last_business" ||
-    preset === "custom"
-  );
+  return dateOnDayOfMonth(year, monthIndex, resolveMonthlyDay(cycle));
 }
 
 /** Next income date strictly on or after `today` (local calendar). */
 export function getNextIncomeDate(cycle: IncomeCycle, today: Date = new Date()): Date {
   const ref = startOfDay(today);
+  const onThisMonth = monthlyIncomeDateForMonth(cycle, ref.getFullYear(), ref.getMonth());
+  if (onThisMonth >= ref) return onThisMonth;
 
-  if (isMonthlyPreset(cycle.preset)) {
-    const onThisMonth = monthlyIncomeDateForMonth(cycle, ref.getFullYear(), ref.getMonth());
-    if (onThisMonth >= ref) return onThisMonth;
-
-    const nextMonth = addMonths(startOfMonth(ref), 1);
-    return monthlyIncomeDateForMonth(cycle, nextMonth.getFullYear(), nextMonth.getMonth());
-  }
-
-  const anchorIso = cycle.anchorDate;
-  if (!anchorIso) return ref;
-
-  const anchor = startOfDay(parseISO(anchorIso));
-  const stepDays = cycle.preset === "weekly" ? 7 : 14;
-
-  if (ref <= anchor) return anchor;
-
-  const daysSince = differenceInCalendarDays(ref, anchor);
-  const periods = Math.ceil(daysSince / stepDays);
-  return addDays(anchor, periods * stepDays);
+  const nextMonth = addMonths(startOfMonth(ref), 1);
+  return monthlyIncomeDateForMonth(cycle, nextMonth.getFullYear(), nextMonth.getMonth());
 }
 
 /** Most recent income date on or before `today`. */
 export function getPreviousIncomeDate(cycle: IncomeCycle, today: Date = new Date()): Date {
   const ref = startOfDay(today);
+  const onThisMonth = monthlyIncomeDateForMonth(cycle, ref.getFullYear(), ref.getMonth());
+  if (onThisMonth <= ref) return onThisMonth;
 
-  if (isMonthlyPreset(cycle.preset)) {
-    const onThisMonth = monthlyIncomeDateForMonth(cycle, ref.getFullYear(), ref.getMonth());
-    if (onThisMonth <= ref) return onThisMonth;
-
-    const prevMonth = addMonths(startOfMonth(ref), -1);
-    return monthlyIncomeDateForMonth(cycle, prevMonth.getFullYear(), prevMonth.getMonth());
-  }
-
-  const anchorIso = cycle.anchorDate;
-  if (!anchorIso) return ref;
-
-  const anchor = startOfDay(parseISO(anchorIso));
-  const stepDays = cycle.preset === "weekly" ? 7 : 14;
-
-  if (ref < anchor) return anchor;
-
-  const daysSince = differenceInCalendarDays(ref, anchor);
-  const periods = Math.floor(daysSince / stepDays);
-  return addDays(anchor, periods * stepDays);
+  const prevMonth = addMonths(startOfMonth(ref), -1);
+  return monthlyIncomeDateForMonth(cycle, prevMonth.getFullYear(), prevMonth.getMonth());
 }
 
 export function getNextIncomeDateIso(cycle: IncomeCycle, today: Date = new Date()): string {
@@ -236,21 +180,9 @@ export function formatIncomeDateLabel(date: Date): string {
   return format(date, "MMM d");
 }
 
-export function presetToIncomeCycle(preset: IncomeCyclePreset, day?: number, anchorDate?: string): IncomeCycle {
+export function presetToIncomeCycle(preset: IncomeCyclePreset, day?: number): IncomeCycle {
   if (preset === "custom") {
     return { preset, day: day ?? 1 };
   }
-  if (preset === "biweekly" || preset === "weekly") {
-    return { preset, anchorDate };
-  }
   return { preset };
-}
-
-/** Suggested anchor when switching to weekly / biweekly (nearest past weekday). */
-export function defaultIncomeAnchorDate(today: Date = new Date()): string {
-  let cursor = startOfDay(today);
-  while (getDay(cursor) === 0 || getDay(cursor) === 6) {
-    cursor = subDays(cursor, 1);
-  }
-  return format(cursor, "yyyy-MM-dd");
 }

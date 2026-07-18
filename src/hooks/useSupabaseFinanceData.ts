@@ -67,8 +67,16 @@ import {
   type IncomeWriteSource,
 } from "@/utils/budgetIncomeGuard";
 import { isBillReservedInUpcoming, logBillPaymentDebug } from "@/utils/billPayment";
-import { buildInheritedBudgetForMonth } from "@/utils/budgetCycleCarryForward";
 import { computeSafeToSpendCents } from "@/utils/safeToSpend";
+import type { BudgetCycle } from "@/types/budgetCycle";
+import {
+  budgetMonthKeyFromCycle,
+  findCycleForMonthKey,
+  findPreviousCycle,
+  isDateInBudgetCycle,
+} from "@/utils/budgetCycles";
+import { ensureCyclesUpToToday } from "@/utils/budgetCycleService";
+import { useCycleIncome } from "@/hooks/useCycleIncome";
 
 interface StoredData {
   budgets: Record<string, BudgetMonth>;
@@ -427,7 +435,7 @@ function useFinanceDataInternal() {
   );
   const [settingsSource, setSettingsSource] = useState<SettingsPersistenceSource>("none");
   const [localOnlyRecurringBillsCount, setLocalOnlyRecurringBillsCount] = useState(0);
-  const carryForwardAttemptedRef = useRef<Set<string>>(new Set());
+  const [budgetCycles, setBudgetCycles] = useState<BudgetCycle[]>([]);
   /** Discards stale `loadFromSupabase` results when a newer load started (e.g. onboarding sync vs initial fetch). */
   const financeLoadGenerationRef = useRef(0);
 
@@ -532,9 +540,9 @@ function useFinanceDataInternal() {
           });
         }
       }
+      // Schedule preference only — do not rewrite frozen cycle dates or jump month
+      // via recomputed windows. Future cycles use the new schedule at creation time.
       if (normalized) {
-        monthManuallySelectedRef.current = false;
-        setCurrentMonthState(getActiveBudgetMonthKey(normalized));
         setMonthSelectionSource("income_cycle_active");
       }
     },
@@ -559,16 +567,37 @@ function useFinanceDataInternal() {
   );
 
   useEffect(() => {
-    if (!isIncomeCycleConfigured(incomeCycle)) return;
-    if (monthManuallySelectedRef.current) return;
-    const activeMonth = getActiveBudgetMonthKey(incomeCycle);
-    setCurrentMonthState((prev) => (prev === activeMonth ? prev : activeMonth));
-  }, [incomeCycle]);
-
-  useEffect(() => {
     if (isIncomeCycleConfigured(incomeCycle)) return;
     writeCurrentMonthToLocalStorage(currentMonth);
   }, [currentMonth, incomeCycle]);
+
+  useEffect(() => {
+    if (isDemoMode || !user || !hasSupabaseEnv || !settingsHydrated) {
+      return;
+    }
+    let cancelled = false;
+    void ensureCyclesUpToToday({ userId: user.id, incomeCycle })
+      .then((cycles) => {
+        if (cancelled) return;
+        setBudgetCycles(cycles);
+        if (!monthManuallySelectedRef.current) {
+          const active = cycles.find((c) => c.status === "active");
+          if (active) {
+            const key = budgetMonthKeyFromCycle(active);
+            setCurrentMonthState((prev) => (prev === key ? prev : key));
+            setMonthSelectionSource("income_cycle_active");
+          }
+        }
+      })
+      .catch((err: unknown) => {
+        if (import.meta.env.DEV) {
+          console.warn("[finance] ensureCyclesUpToToday failed", err);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [incomeCycle, isDemoMode, settingsHydrated, user]);
 
   const loadFromSupabase = useCallback(
     async (userId: string, options?: { signal?: AbortSignal; showLoading?: boolean }) => {
@@ -914,12 +943,63 @@ function useFinanceDataInternal() {
 
   const currentMonthData = getMonthData(currentMonth);
   const incomeCycleConfigured = isIncomeCycleConfigured(incomeCycle);
+
+  const selectedCycle = useMemo(() => {
+    if (isDemoMode) return null;
+    return (
+      findCycleForMonthKey(budgetCycles, currentMonth) ??
+      budgetCycles.find((c) => c.status === "active") ??
+      null
+    );
+  }, [budgetCycles, currentMonth, isDemoMode]);
+
+  const previousCycle = useMemo(
+    () => (selectedCycle ? findPreviousCycle(budgetCycles, selectedCycle) : null),
+    [budgetCycles, selectedCycle],
+  );
+
+  const cycleIncome = useCycleIncome(
+    !isDemoMode && user ? user.id : undefined,
+    selectedCycle?.id,
+  );
+  const previousCycleIncome = useCycleIncome(
+    !isDemoMode && user ? user.id : undefined,
+    previousCycle?.id,
+  );
+
+  const totalIncomeThisCycleCents = isDemoMode
+    ? (currentMonthData.budget?.salaryCents ?? 0)
+    : cycleIncome.totalIncomeCents;
+  const hasIncomeForCycle = isDemoMode
+    ? totalIncomeThisCycleCents > 0
+    : cycleIncome.hasIncomeForCycle;
+  const previousCycleIncomeCents = isDemoMode
+    ? (data.budgets[getPreviousMonth(currentMonth)]?.salaryCents ?? 0)
+    : previousCycleIncome.totalIncomeCents;
+
+  /** Display budget: salaryCents is derived from income_entries (not a write source). */
   const effectiveBudget = useMemo(() => {
-    if (!incomeCycleConfigured) {
-      return currentMonthData.budget;
+    const base = currentMonthData.budget;
+    if (isDemoMode) return base;
+    if (!base) {
+      if (!hasIncomeForCycle && !selectedCycle) return null;
+      return {
+        id: selectedCycle?.id ?? `cycle-${currentMonth}`,
+        month: currentMonth,
+        salaryCents: totalIncomeThisCycleCents,
+        currency: "EUR",
+        createdAt: selectedCycle?.createdAt ?? new Date().toISOString(),
+      };
     }
-    return buildInheritedBudgetForMonth(data.budgets, currentMonth);
-  }, [currentMonth, currentMonthData.budget, data.budgets, incomeCycleConfigured]);
+    return { ...base, salaryCents: totalIncomeThisCycleCents };
+  }, [
+    currentMonth,
+    currentMonthData.budget,
+    hasIncomeForCycle,
+    isDemoMode,
+    selectedCycle,
+    totalIncomeThisCycleCents,
+  ]);
 
   const updateMonthlyIncome = useCallback(
     async (
@@ -1039,62 +1119,49 @@ function useFinanceDataInternal() {
 
   const setSalary = useCallback(
     async (salaryCents: number, incomeNote?: string) => {
-      await runWithIncomeWrite("user_edit", () =>
-        updateMonthlyIncome(currentMonth, salaryCents, incomeNote, undefined, {
-          source: "user_edit",
-        }),
-      );
-    },
-    [currentMonth, updateMonthlyIncome],
-  );
+      if (isDemoMode) {
+        toast.info("Sample budget", { description: DEMO_EDIT_MESSAGE });
+        return;
+      }
+      if (!user || !hasSupabaseEnv) return;
 
-  useEffect(() => {
-    if (isDemoMode || !user || !hasSupabaseEnv || !settingsHydrated || !incomeCycleConfigured) {
-      return;
-    }
+      let cycle = selectedCycle;
+      if (!cycle) {
+        const cycles = await ensureCyclesUpToToday({ userId: user.id, incomeCycle });
+        setBudgetCycles(cycles);
+        cycle =
+          findCycleForMonthKey(cycles, currentMonth) ??
+          cycles.find((c) => c.status === "active") ??
+          null;
+      }
+      if (!cycle) {
+        toast.error("Could not save income", {
+          description: "No budget cycle is available yet. Try again in a moment.",
+        });
+        return;
+      }
 
-    const storedSalary = data.budgets[currentMonth]?.salaryCents ?? 0;
-    if (storedSalary > 0) {
-      return;
-    }
+      const today = format(new Date(), "yyyy-MM-dd");
+      const receivedDate = isDateInBudgetCycle(today, cycle) ? today : cycle.startDate;
 
-    const inherited = buildInheritedBudgetForMonth(data.budgets, currentMonth);
-    if (!inherited || inherited.salaryCents <= 0 || inherited.month !== currentMonth) {
-      return;
-    }
-
-    const attemptKey = `${user.id}:${currentMonth}`;
-    if (carryForwardAttemptedRef.current.has(attemptKey)) {
-      return;
-    }
-    carryForwardAttemptedRef.current.add(attemptKey);
-
-    void runWithIncomeWrite("cycle_carry_forward", () => {
-      void updateMonthlyIncome(
-        currentMonth,
-        inherited.salaryCents,
-        inherited.incomeNote,
-        inherited.currency,
-        { source: "cycle_carry_forward" },
-      ).then(() => {
-        if (import.meta.env.DEV) {
-          console.debug(
-            "[finance] carried forward income to new cycle month",
-            currentMonth,
-            inherited.salaryCents,
-          );
-        }
+      await runWithIncomeWrite("user_edit", async () => {
+        await cycleIncome.addIncome.mutateAsync({
+          amountCents: salaryCents,
+          receivedDate,
+          source: "salary",
+          note: incomeNote ?? null,
+        });
       });
-    });
-  }, [
-    currentMonth,
-    data.budgets,
-    incomeCycleConfigured,
-    isDemoMode,
-    settingsHydrated,
-    updateMonthlyIncome,
-    user,
-  ]);
+    },
+    [
+      currentMonth,
+      cycleIncome.addIncome,
+      incomeCycle,
+      isDemoMode,
+      selectedCycle,
+      user,
+    ],
+  );
 
   const addExpense = useCallback(
     async (expense: Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">) => {
@@ -1634,7 +1701,7 @@ function useFinanceDataInternal() {
         0,
       );
       const safeToSpendBefore = computeSafeToSpendCents({
-        incomeForCurrentCycleCents: data.budgets[currentMonth]?.salaryCents ?? 0,
+        incomeForCurrentCycleCents: totalIncomeThisCycleCents,
         spentSoFarCents: spentBefore,
         upcomingBillsBeforeIncomeDateCents: upcomingCentsBefore,
         savingsGoalsForCurrentCycleCents: savingsCents,
@@ -1719,7 +1786,7 @@ function useFinanceDataInternal() {
         monthStartIso,
       );
       const safeToSpendAfter = computeSafeToSpendCents({
-        incomeForCurrentCycleCents: data.budgets[currentMonth]?.salaryCents ?? 0,
+        incomeForCurrentCycleCents: totalIncomeThisCycleCents,
         spentSoFarCents: spentBefore + bill.amountCents,
         upcomingBillsBeforeIncomeDateCents: upcomingAfterPay.reduce(
           (sum, item) => sum + item.amountCents,
@@ -1847,6 +1914,7 @@ function useFinanceDataInternal() {
       incomeCycle,
       isDemoMode,
       pendingExpenses,
+      totalIncomeThisCycleCents,
       useRecurringBillsLocalFallback,
       user,
     ],
@@ -2058,18 +2126,31 @@ function useFinanceDataInternal() {
     [allCategories, currentMonth, isDemoMode, user],
   );
 
-  const totalSpentCents = currentMonthData.expenses.reduce((sum, exp) => sum + exp.amountCents, 0);
-  const effectiveSalaryCents = effectiveBudget?.salaryCents ?? 0;
+  const totalSpentCents = useMemo(() => {
+    if (selectedCycle) {
+      return data.expenses
+        .filter((exp) => isDateInBudgetCycle(exp.date, selectedCycle))
+        .reduce((sum, exp) => sum + exp.amountCents, 0);
+    }
+    return currentMonthData.expenses.reduce((sum, exp) => sum + exp.amountCents, 0);
+  }, [currentMonthData.expenses, data.expenses, selectedCycle]);
+
+  const effectiveSalaryCents = totalIncomeThisCycleCents;
   const remainingIncomeCents = effectiveSalaryCents - totalSpentCents;
-  const cycleWindow = incomeCycleConfigured
-    ? getCycleWindowDatesForMonthKey(incomeCycle!, currentMonth)
-    : null;
-  const nextSalaryDate = incomeCycleConfigured
-    ? format(cycleWindow!.end, "yyyy-MM-dd")
-    : getDefaultNextIncomeDateForMonth(currentMonth);
-  const monthStartIso = incomeCycleConfigured
-    ? format(cycleWindow!.start, "yyyy-MM-dd")
-    : `${currentMonth}-01`;
+  const frozenCycleStartIso = selectedCycle?.startDate ?? null;
+  const frozenCycleEndIso = selectedCycle?.endDate ?? null;
+  const legacyCycleWindow =
+    !selectedCycle && incomeCycleConfigured
+      ? getCycleWindowDatesForMonthKey(incomeCycle!, currentMonth)
+      : null;
+  const nextSalaryDate =
+    frozenCycleEndIso ??
+    (legacyCycleWindow
+      ? format(legacyCycleWindow.end, "yyyy-MM-dd")
+      : getDefaultNextIncomeDateForMonth(currentMonth));
+  const monthStartIso =
+    frozenCycleStartIso ??
+    (legacyCycleWindow ? format(legacyCycleWindow.start, "yyyy-MM-dd") : `${currentMonth}-01`);
   const upcomingBills = getUpcomingBills(data.recurringBills, nextSalaryDate, monthStartIso);
   const upcomingBillsBeforeNextSalary = upcomingBills;
   const upcomingUnpaidBillsCents = upcomingBillsBeforeNextSalary.reduce((sum, bill) => sum + bill.amountCents, 0);
@@ -2077,12 +2158,14 @@ function useFinanceDataInternal() {
     (sum, goal) => sum + calculateGoalPlan(goal).monthlyRequiredSavingCents,
     0,
   );
-  const safeToSpendCents = computeSafeToSpendCents({
-    incomeForCurrentCycleCents: effectiveSalaryCents,
-    spentSoFarCents: totalSpentCents,
-    upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
-    savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
-  });
+  const safeToSpendCents = hasIncomeForCycle
+    ? computeSafeToSpendCents({
+        incomeForCurrentCycleCents: effectiveSalaryCents,
+        spentSoFarCents: totalSpentCents,
+        upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
+        savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
+      })
+    : null;
   const remainingCents = safeToSpendCents;
   const hasAnyData =
     Object.keys(data.budgets).length > 0 ||
@@ -2099,8 +2182,8 @@ function useFinanceDataInternal() {
       monthSelectionSource,
       settingsSource,
       incomeCycleConfigured,
-      cycleStart: cycleWindow ? format(cycleWindow.start, "yyyy-MM-dd") : null,
-      cycleEnd: cycleWindow ? format(cycleWindow.end, "yyyy-MM-dd") : null,
+      cycleStart: frozenCycleStartIso,
+      cycleEnd: frozenCycleEndIso,
       incomeCents: effectiveSalaryCents,
       spentCents: totalSpentCents,
       savingsCents: savingsGoalAllocationCents,
@@ -2114,7 +2197,8 @@ function useFinanceDataInternal() {
       currentMonth,
       currentMonthData.budget?.salaryCents,
       effectiveSalaryCents,
-      cycleWindow,
+      frozenCycleEndIso,
+      frozenCycleStartIso,
       data.recurringBills.length,
       financeUserId,
       incomeCycleConfigured,
@@ -2130,23 +2214,23 @@ function useFinanceDataInternal() {
   );
 
   const getCurrentMonthIncome = useCallback(() => {
-    const budget = data.budgets[currentMonth];
     return {
       month: currentMonth,
-      salaryCents: budget?.salaryCents ?? 0,
-      incomeNote: budget?.incomeNote,
+      salaryCents: totalIncomeThisCycleCents,
+      incomeNote: cycleIncome.entries[0]?.note ?? undefined,
     };
-  }, [currentMonth, data.budgets]);
+  }, [currentMonth, cycleIncome.entries, totalIncomeThisCycleCents]);
 
   const getPreviousMonthIncome = useCallback(() => {
-    const previousMonth = getPreviousMonth(currentMonth);
-    const budget = data.budgets[previousMonth];
+    const previousMonth = previousCycle
+      ? budgetMonthKeyFromCycle(previousCycle)
+      : getPreviousMonth(currentMonth);
     return {
       month: previousMonth,
-      salaryCents: budget?.salaryCents ?? 0,
-      incomeNote: budget?.incomeNote,
+      salaryCents: previousCycleIncomeCents,
+      incomeNote: undefined,
     };
-  }, [currentMonth, data.budgets]);
+  }, [currentMonth, previousCycle, previousCycleIncomeCents]);
 
   const getIncomeDifference = useCallback(() => {
     const current = getCurrentMonthIncome();
@@ -2276,12 +2360,31 @@ function useFinanceDataInternal() {
         console.debug("[onboarding sync] monthly savings goal cents", merged.monthlySavingsGoalCents);
       }
 
-      // 1) Income — saves budget for the current month.
-      await runWithIncomeWrite("onboarding", () =>
-        updateMonthlyIncome(currentMonth, merged.monthlyIncomeCents, "Income from setup", undefined, {
-          source: "onboarding",
-        }),
-      );
+      // 1) Income — create an income_entries row for the active cycle (not carry-forward).
+      if (merged.monthlyIncomeCents > 0) {
+        await runWithIncomeWrite("onboarding", async () => {
+          const cycles = await ensureCyclesUpToToday({ userId: user.id, incomeCycle });
+          setBudgetCycles(cycles);
+          const cycle =
+            findCycleForMonthKey(cycles, currentMonth) ??
+            cycles.find((c) => c.status === "active") ??
+            null;
+          if (!cycle) {
+            throw new Error("Could not resolve a budget cycle for onboarding income");
+          }
+          const { error } = await supabase.from("income_entries").insert({
+            user_id: user.id,
+            cycle_id: cycle.id,
+            amount_cents: merged.monthlyIncomeCents,
+            received_date: cycle.startDate,
+            source: "onboarding",
+            note: "Income from setup",
+            date_is_estimated: false,
+          });
+          if (error) throw new Error(error.message);
+          await cycleIncome.invalidateCycleQueries();
+        });
+      }
 
       // 2) Optional custom spending categories.
       if (hasSupabaseEnv) {
@@ -2473,11 +2576,12 @@ function useFinanceDataInternal() {
       addRecurringBill,
       addSavingsGoal,
       currentMonth,
+      cycleIncome,
       data.recurringBills,
       data.savingsGoals,
       deleteSavingsGoal,
+      incomeCycle,
       loadFromSupabase,
-      updateMonthlyIncome,
       updateSavingsGoal,
     ],
   );
@@ -2509,15 +2613,64 @@ function useFinanceDataInternal() {
     [isDemoMode, user],
   );
 
+  const reverseContributionFromGoal = useCallback(
+    async (goalId: string, amountCents: number) => {
+      if (isDemoMode || !user || amountCents <= 0) return;
+
+      setData((prev) => ({
+        ...prev,
+        savingsGoals: prev.savingsGoals.map((g) =>
+          g.id === goalId
+            ? { ...g, savedCents: Math.max(0, g.savedCents - amountCents) }
+            : g,
+        ),
+      }));
+
+      const { error: rpcError } = await supabase.rpc("increment_goal_saved_cents", {
+        p_goal_id: goalId,
+        p_user_id: user.id,
+        p_amount_cents: -amountCents,
+      });
+
+      if (rpcError) {
+        throw rpcError;
+      }
+
+      const { error: insertError } = await supabase.from("goal_contributions").insert({
+        user_id: user.id,
+        goal_id: goalId,
+        amount_cents: -amountCents,
+      });
+
+      if (insertError) {
+        throw insertError;
+      }
+    },
+    [isDemoMode, user],
+  );
+
+  const cycleExpenses = useMemo(() => {
+    if (selectedCycle) {
+      return data.expenses.filter((exp) => isDateInBudgetCycle(exp.date, selectedCycle));
+    }
+    return currentMonthData.expenses;
+  }, [currentMonthData.expenses, data.expenses, selectedCycle]);
+
   return {
     isLoading,
     currentMonth,
     setCurrentMonth,
     getMonthData,
     budget: effectiveBudget,
-    expenses: currentMonthData.expenses,
+    expenses: cycleExpenses,
     allExpenses: data.expenses,
     totalSpentCents,
+    totalIncomeThisCycleCents,
+    hasIncomeForCycle,
+    previousCycleIncomeCents,
+    selectedCycle,
+    previousCycle,
+    budgetCycles,
     remainingIncomeCents,
     safeToSpendCents,
     savingsGoalAllocationCents,
@@ -2554,6 +2707,7 @@ function useFinanceDataInternal() {
     updateSavingsGoal,
     deleteSavingsGoal,
     addContributionToGoal,
+    reverseContributionFromGoal,
     addRecurringBill,
     updateRecurringBill,
     deleteRecurringBill,

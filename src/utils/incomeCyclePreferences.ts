@@ -1,4 +1,4 @@
-import type { IncomeCycle } from "@/types/incomeCycle";
+import { isIncomeCyclePreset, type IncomeCycle } from "@/types/incomeCycle";
 import { isIncomeCycleConfigured } from "@/utils/incomeCycle";
 
 export const INCOME_CYCLE_STORAGE_KEY = "bt_income_cycle_v1";
@@ -12,11 +12,12 @@ export function readIncomeCycle(userId: string | undefined): IncomeCycle | null 
   try {
     const raw = localStorage.getItem(storageKeyForUser(userId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<IncomeCycle>;
+    const parsed = JSON.parse(raw) as { preset?: unknown; day?: unknown };
+    // Deprecated presets resolve to null (unselected) without wiping stored data here.
+    if (!isIncomeCyclePreset(parsed.preset)) return null;
     const cycle: IncomeCycle = {
-      preset: parsed.preset as IncomeCycle["preset"],
-      day: parsed.day,
-      anchorDate: parsed.anchorDate,
+      preset: parsed.preset,
+      day: typeof parsed.day === "number" ? parsed.day : undefined,
     };
     return isIncomeCycleConfigured(cycle) ? cycle : null;
   } catch {

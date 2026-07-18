@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { parseISO } from "date-fns";
 import { Helmet } from "react-helmet-async";
+import { useNavigate } from "react-router-dom";
 
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { useAuth } from "@/context/AuthContext";
@@ -8,6 +9,7 @@ import { useDemo } from "@/context/DemoContext";
 import { useBudgetAdjustments } from "@/hooks/useBudgetAdjustments";
 import { hasSupabaseEnv, supabaseEnvError } from "@/lib/supabase/client";
 import { MonthPlanCard } from "@/components/budget/MonthPlanCard";
+import { AdjustSavingsSheet } from "@/components/budget/AdjustSavingsSheet";
 import { UpcomingBillsCard } from "@/components/UpcomingBillsCard";
 import { BillPaymentModals } from "@/components/BillPaymentModals";
 import { useBillPaymentDecision } from "@/hooks/useBillPaymentDecision";
@@ -27,18 +29,18 @@ import { usePreviousMonthLeftover } from "@/hooks/usePreviousMonthLeftover";
 import { getRolloverBoostBreakdown } from "@/utils/budgetDecisions";
 import { getPausedGoalsAllocationCents, getGoalReallocationBoostCents } from "@/utils/paceSupport";
 import { computeSafeToSpendCents } from "@/utils/safeToSpend";
+import { useAdjustSavingsDecision } from "@/hooks/useAdjustSavingsDecision";
 import {
   formatIncomeDateLabel,
   getCycleWindowDatesForMonthKey,
   isIncomeCycleConfigured,
 } from "@/utils/incomeCycle";
-import { FinanceDiagnostics } from "@/components/dev/FinanceDiagnostics";
-
 const NOTIFICATION_LOG_KEY = "bt_notification_log_v1";
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { isDemoMode } = useDemo();
+  const navigate = useNavigate();
   const {
     currentMonth,
     setCurrentMonth,
@@ -46,6 +48,8 @@ export default function Dashboard() {
     budget,
     expenses,
     totalSpentCents,
+    totalIncomeThisCycleCents,
+    hasIncomeForCycle,
     savingsGoalAllocationCents,
     allExpenses,
     addExpense,
@@ -55,10 +59,11 @@ export default function Dashboard() {
     upcomingBills,
     upcomingUnpaidBillsCents,
     incomeCycle,
+    selectedCycle,
     isLoading,
     markRecurringBillPaid,
     categoryLimitsForMonth,
-    financeDiagnostics,
+    reverseContributionFromGoal,
   } = useSupabaseFinanceData();
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
@@ -86,15 +91,17 @@ export default function Dashboard() {
     [adjustments.goalReallocationCents],
   );
 
-  const adjustedSafeToSpend = computeSafeToSpendCents({
-    incomeForCurrentCycleCents: budget?.salaryCents ?? 0,
-    spentSoFarCents: totalSpentCents,
-    upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
-    savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
-    rolloverBoostCents: adjustments.rolloverBoostCents,
-    pausedGoalsBoostCents,
-    goalReallocationBoostCents,
-  });
+  const adjustedSafeToSpend = hasIncomeForCycle
+    ? computeSafeToSpendCents({
+        incomeForCurrentCycleCents: totalIncomeThisCycleCents,
+        spentSoFarCents: totalSpentCents,
+        upcomingBillsBeforeIncomeDateCents: upcomingUnpaidBillsCents,
+        savingsGoalsForCurrentCycleCents: savingsGoalAllocationCents,
+        rolloverBoostCents: adjustments.rolloverBoostCents,
+        pausedGoalsBoostCents,
+        goalReallocationBoostCents,
+      })
+    : 0;
 
   const billPayment = useBillPaymentDecision(
     userId
@@ -150,7 +157,7 @@ export default function Dashboard() {
   const financialPace = useMemo(
     () =>
       buildFinancialPace({
-        salaryCents: budget?.salaryCents ?? 0,
+        salaryCents: totalIncomeThisCycleCents,
         totalSpentCents,
         leftUntilPaydayCents: adjustedSafeToSpend,
         upcomingBills,
@@ -167,7 +174,7 @@ export default function Dashboard() {
       activeCurrency,
       adjustedSafeToSpend,
       allExpenses,
-      budget?.salaryCents,
+      totalIncomeThisCycleCents,
       currentMonth,
       savingsGoalAllocationCents,
       savingsGoals.length,
@@ -182,8 +189,54 @@ export default function Dashboard() {
   const isTightFinances =
     financialPace.emotionalTone === "tight" || financialPace.emotionalTone === "supportive";
 
+  const adjustSavingsCycleLabel = useMemo(() => {
+    if (selectedCycle) {
+      return `${formatIncomeDateLabel(parseISO(selectedCycle.startDate))} – ${formatIncomeDateLabel(parseISO(selectedCycle.endDate))}`;
+    }
+    if (isIncomeCycleConfigured(incomeCycle)) {
+      const { start, end } = getCycleWindowDatesForMonthKey(incomeCycle, currentMonth);
+      return `${formatIncomeDateLabel(start)} – ${formatIncomeDateLabel(end)}`;
+    }
+    return formatMonthNameOnly(currentMonth);
+  }, [currentMonth, incomeCycle, selectedCycle]);
+
+  const adjustSavings = useAdjustSavingsDecision(
+    userId && !isDemoMode
+      ? {
+          userId,
+          month: currentMonth,
+          currency: activeCurrency,
+          safeToSpendCents: adjustedSafeToSpend,
+          savingsAllocationCents: savingsGoalAllocationCents,
+          pausedGoalsBoostCents,
+          goalReallocationBoostCents,
+          goals: savingsGoals,
+          incomeCycle,
+          cycleStartIso: selectedCycle?.startDate ?? null,
+          cycleEndIso: selectedCycle?.endDate ?? null,
+          onDecided: refresh,
+          onTransferBack: reverseContributionFromGoal,
+        }
+      : {
+          userId: userId || "demo",
+          month: currentMonth,
+          currency: activeCurrency,
+          safeToSpendCents: adjustedSafeToSpend,
+          savingsAllocationCents: savingsGoalAllocationCents,
+          pausedGoalsBoostCents,
+          goalReallocationBoostCents,
+          goals: savingsGoals,
+          incomeCycle,
+          cycleStartIso: selectedCycle?.startDate ?? null,
+          cycleEndIso: selectedCycle?.endDate ?? null,
+          isDemoMode: true,
+          onDecided: refresh,
+          onTransferBack: async () => {},
+        },
+  );
+
   const monthComparisonLabel = useMemo(() => {
-    const salary = budget?.salaryCents ?? 0;
+    const salary = totalIncomeThisCycleCents;
     if (salary <= 0 || !previousMonthKey) return null;
     const prev = getMonthData(previousMonthKey);
     const prevSalary = prev.budget?.salaryCents ?? 0;
@@ -195,7 +248,7 @@ export default function Dashboard() {
     const improvement = Math.round(((prevSpentPct - currentSpentPct) / prevSpentPct) * 100);
     if (improvement < 3) return null;
     return `↑ ${improvement}% better than ${formatMonthNameOnly(previousMonthKey)}`;
-  }, [budget?.salaryCents, getMonthData, previousMonthKey, totalSpentCents]);
+  }, [getMonthData, previousMonthKey, totalIncomeThisCycleCents, totalSpentCents]);
 
   const previousMonthExpenses = useMemo(() => {
     if (!previousMonthKey) return [];
@@ -229,6 +282,9 @@ export default function Dashboard() {
   );
 
   const nextIncomeDateLabel = useMemo(() => {
+    if (selectedCycle) {
+      return formatIncomeDateLabel(parseISO(selectedCycle.endDate));
+    }
     const cycleConfigured = isIncomeCycleConfigured(incomeCycle);
     if (cycleConfigured) {
       const { end } = getCycleWindowDatesForMonthKey(incomeCycle, currentMonth);
@@ -236,7 +292,7 @@ export default function Dashboard() {
     }
     const nextIncomeDate = parseISO(getNextSalaryDateForMonth(currentMonth, incomeCycle));
     return formatIncomeDateLabel(nextIncomeDate);
-  }, [currentMonth, incomeCycle]);
+  }, [currentMonth, incomeCycle, selectedCycle]);
 
   useEffect(() => {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
@@ -291,9 +347,7 @@ export default function Dashboard() {
     localStorage.setItem(NOTIFICATION_LOG_KEY, JSON.stringify(log));
   }, [savingsGoals.length, upcomingBills]);
 
-  const hasHomeContent = isDemoMode
-    ? !!budget
-    : (budget?.salaryCents ?? 0) > 0 || recurringBills.length > 0;
+  const hasHomeContent = isDemoMode ? !!budget : true;
 
   const showInsights =
     dashboardInsights.length > 0 || Boolean(monthComparisonLabel);
@@ -339,6 +393,7 @@ export default function Dashboard() {
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
           incomeCycle={incomeCycle}
+          selectedCycle={selectedCycle}
           currency={activeCurrency}
           contentMaxWidth={appShellMaxWidthClass}
         />
@@ -346,8 +401,6 @@ export default function Dashboard() {
         <main
           className={`container ${appShellMaxWidthClass} space-y-3 px-4 pb-mobile-nav pr-mobile-fab pt-3 sm:space-y-4 sm:px-6 sm:pt-4 md:pb-8 md:pr-4 lg:px-7 lg:pt-4`}
         >
-          {import.meta.env.DEV ? <FinanceDiagnostics snapshot={financeDiagnostics} /> : null}
-
           {isLoading ? (
             <div className="card-dashboard p-6">
               <p className="text-sm text-muted-foreground">Loading your budget...</p>
@@ -371,18 +424,22 @@ export default function Dashboard() {
                     compact
                     currentMonth={currentMonth}
                     currency={activeCurrency}
-                    salaryCents={budget?.salaryCents ?? 0}
+                    salaryCents={totalIncomeThisCycleCents}
                     fixedBillsCents={upcomingUnpaidBillsCents}
                     savingsAllocationCents={savingsGoalAllocationCents}
                     spentSoFarCents={totalSpentCents}
                     remainingCents={adjustedSafeToSpend}
                     weeklySafeToSpendCents={weeklySafeToSpend}
                     recurringBillsCount={recurringBills.length}
-                    pace={financialPace}
+                    pace={hasIncomeForCycle ? financialPace : undefined}
                     incomeCycle={incomeCycle}
                     rolloverBoostCents={adjustments.rolloverBoostCents}
                     pausedGoalsBoostCents={pausedGoalsBoostCents}
+                    goalReallocationBoostCents={goalReallocationBoostCents}
                     carriedOverLabel={carriedOverLabel}
+                    onAdjustSavings={hasIncomeForCycle ? adjustSavings.openSheet : undefined}
+                    hasIncomeForCycle={hasIncomeForCycle}
+                    onAddIncome={() => navigate("/budget")}
                   />
                 </div>
               )}
@@ -404,6 +461,9 @@ export default function Dashboard() {
                   expenses={allExpenses}
                   currentMonth={currentMonth}
                   currency={activeCurrency}
+                  incomeCycle={incomeCycle}
+                  cycleStartIso={selectedCycle?.startDate}
+                  cycleEndIso={selectedCycle?.endDate}
                   calmMode={isTightFinances}
                 />
               </div>
@@ -434,6 +494,12 @@ export default function Dashboard() {
         {userId && !isDemoMode ? (
           <BillPaymentModals currency={activeCurrency} {...billPayment} />
         ) : null}
+
+        <AdjustSavingsSheet
+          {...adjustSavings}
+          currency={activeCurrency}
+          cycleLabel={adjustSavingsCycleLabel}
+        />
       </div>
     </>
   );

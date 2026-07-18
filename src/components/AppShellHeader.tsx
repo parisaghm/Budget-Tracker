@@ -14,6 +14,7 @@ import {
 import { MonthSelector } from "@/components/MonthSelector";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import type { IncomeCycle } from "@/types/incomeCycle";
+import type { BudgetCycle } from "@/types/budgetCycle";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -40,6 +41,8 @@ interface AppShellHeaderProps {
   currentMonth: string;
   onMonthChange: (month: string) => void;
   incomeCycle?: IncomeCycle | null;
+  /** Frozen budget cycle for the selected month; the month label uses its exact dates. */
+  selectedCycle?: BudgetCycle | null;
   trailing?: ReactNode;
   /** Must match the `max-w-*` on the page’s `<main>` for edge alignment. */
   contentMaxWidth?: ContentMaxWidth;
@@ -54,6 +57,7 @@ export function AppShellHeader({
   currentMonth,
   onMonthChange,
   incomeCycle = null,
+  selectedCycle = null,
   trailing,
   contentMaxWidth = appShellMaxWidthClass,
   mobileLayout = "default",
@@ -110,6 +114,7 @@ export function AppShellHeader({
                   currentMonth={currentMonth}
                   onMonthChange={onMonthChange}
                   incomeCycle={incomeCycle}
+                  selectedCycle={selectedCycle}
                   variant="mobile"
                 />
               </div>
@@ -159,6 +164,7 @@ export function AppShellHeader({
                 currentMonth={currentMonth}
                 onMonthChange={onMonthChange}
                 incomeCycle={incomeCycle}
+                selectedCycle={selectedCycle}
               />
               <Link
                 to="/settings"

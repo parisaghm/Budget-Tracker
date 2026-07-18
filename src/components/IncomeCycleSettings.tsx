@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
-import { format, parseISO } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import type { IncomeCycle, IncomeCyclePreset } from "@/types/incomeCycle";
 import { INCOME_CYCLE_PRESET_LABELS } from "@/types/incomeCycle";
 import {
-  defaultIncomeAnchorDate,
   formatIncomeDateLabel,
   getNextIncomeDate,
   isIncomeCycleConfigured,
@@ -13,17 +10,11 @@ import {
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
 
 const PRESET_ORDER: IncomeCyclePreset[] = [
   "monthly_1",
   "monthly_15",
   "monthly_last",
-  "monthly_last_business",
-  "biweekly",
-  "weekly",
   "custom",
 ];
 
@@ -33,26 +24,24 @@ interface IncomeCycleSettingsProps {
 }
 
 export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProps) {
-  const [preset, setPreset] = useState<IncomeCyclePreset>(value?.preset ?? "monthly_15");
+  const [preset, setPreset] = useState<IncomeCyclePreset | null>(value?.preset ?? null);
   const [customDay, setCustomDay] = useState(String(value?.day ?? 1));
-  const [anchorDate, setAnchorDate] = useState(value?.anchorDate ?? defaultIncomeAnchorDate());
 
   useEffect(() => {
-    if (!value) return;
+    if (!value) {
+      setPreset(null);
+      return;
+    }
     setPreset(value.preset);
     if (value.day != null) setCustomDay(String(value.day));
-    if (value.anchorDate) setAnchorDate(value.anchorDate);
   }, [value]);
 
   const buildCycle = (): IncomeCycle | null => {
+    if (!preset) return null;
     if (preset === "custom") {
       const day = Number.parseInt(customDay, 10);
       if (!Number.isFinite(day) || day < 1 || day > 31) return null;
       return presetToIncomeCycle("custom", day);
-    }
-    if (preset === "biweekly" || preset === "weekly") {
-      if (!anchorDate) return null;
-      return presetToIncomeCycle(preset, undefined, anchorDate);
     }
     return presetToIncomeCycle(preset);
   };
@@ -62,9 +51,7 @@ export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProp
     const cycle =
       nextPreset === "custom"
         ? presetToIncomeCycle("custom", Number.parseInt(customDay, 10) || 1)
-        : nextPreset === "biweekly" || nextPreset === "weekly"
-          ? presetToIncomeCycle(nextPreset, undefined, anchorDate || defaultIncomeAnchorDate())
-          : presetToIncomeCycle(nextPreset);
+        : presetToIncomeCycle(nextPreset);
     onChange(isIncomeCycleConfigured(cycle) ? cycle : null);
   };
 
@@ -76,7 +63,7 @@ export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProp
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {PRESET_ORDER.map((option) => {
           const selected = preset === option;
           return (
@@ -117,40 +104,6 @@ export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProp
             }}
             className="max-w-[8rem]"
           />
-        </div>
-      ) : null}
-
-      {preset === "biweekly" || preset === "weekly" ? (
-        <div className="space-y-1.5 rounded-xl bg-muted/60 px-3 py-3">
-          <Label className="text-xs text-muted-foreground">Last income date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start gap-2 font-normal sm:max-w-xs"
-              >
-                <CalendarIcon className="h-4 w-4 opacity-70" aria-hidden />
-                {anchorDate ? format(parseISO(anchorDate), "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={anchorDate ? parseISO(anchorDate) : undefined}
-                onSelect={(date) => {
-                  if (!date) return;
-                  const iso = format(date, "yyyy-MM-dd");
-                  setAnchorDate(iso);
-                  onChange(presetToIncomeCycle(preset, undefined, iso));
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-          <p className="text-xs text-muted-foreground">
-            Used to line up future {preset === "weekly" ? "weekly" : "bi-weekly"} income dates.
-          </p>
         </div>
       ) : null}
 

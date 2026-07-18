@@ -28,10 +28,13 @@ export default function BudgetPage() {
     setCategoryLimit,
     deleteCategory,
     incomeCycle,
+    totalIncomeThisCycleCents,
+    hasIncomeForCycle,
+    previousCycleIncomeCents,
   } = useSupabaseFinanceData();
 
   const activeCurrency = budget?.currency ?? "EUR";
-  const incomeCents = budget?.salaryCents ?? 0;
+  const incomeCents = totalIncomeThisCycleCents;
 
   const planning = useMemo(
     () =>
@@ -70,18 +73,19 @@ export default function BudgetPage() {
             <div
               className={cn(
                 "card-elevated p-4",
-                incomeCents > 0 && !showSalaryEditor && "hidden",
+                hasIncomeForCycle && !showSalaryEditor && "hidden",
               )}
             >
-              <p className="label-caps mb-3">Monthly income</p>
+              <p className="label-caps mb-3">Income this cycle</p>
               <SalarySetup
                 ref={salarySetupRef}
                 embedded
-                currentSalaryCents={budget?.salaryCents || null}
+                currentSalaryCents={hasIncomeForCycle ? totalIncomeThisCycleCents : null}
+                previousCycleIncomeCents={previousCycleIncomeCents}
                 incomeNote={budget?.incomeNote ?? null}
                 currency={activeCurrency}
                 onSave={(cents, note) => {
-                  setSalary(cents, note);
+                  void setSalary(cents, note);
                   setShowSalaryEditor(false);
                 }}
               />

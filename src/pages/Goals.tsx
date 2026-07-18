@@ -29,7 +29,7 @@ export default function GoalsPage() {
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
   const { adjustments } = useBudgetAdjustments(userId || undefined, currentMonth);
   const activeCurrency = budget?.currency ?? "EUR";
-  const adjustedRemaining = remainingCents + adjustments.rolloverBoostCents;
+  const adjustedRemaining = (remainingCents ?? 0) + adjustments.rolloverBoostCents;
 
   return (
     <>

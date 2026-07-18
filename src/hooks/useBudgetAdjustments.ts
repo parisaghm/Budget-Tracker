@@ -10,6 +10,7 @@ import {
   type OverspendDecisionRecord,
   type RolloverDecisionRecord,
 } from "@/utils/budgetDecisions";
+import { hydrateMonthAdjustmentsFromSupabase } from "@/utils/budgetAdjustmentsPersistence";
 
 const STORAGE_KEYS = [
   "bt_month_adjustments_v1",
@@ -42,6 +43,11 @@ export function useBudgetAdjustments(userId: string | undefined, month: string) 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!userId) return;
+    void hydrateMonthAdjustmentsFromSupabase(userId, month).then(() => refresh());
+  }, [month, userId, refresh]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {

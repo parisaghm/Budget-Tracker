@@ -10,6 +10,8 @@ interface AnimatedMoneyProps {
   splitDecimals?: boolean;
   /** Run count-up on first mount when true. */
   animateOnMount?: boolean;
+  /** Re-animate when `cents` changes (from the previous displayed value). */
+  animateOnChange?: boolean;
   duration?: number;
   /** Compact display variant for inline amounts. */
   variant?: "hero" | "inline";
@@ -24,12 +26,17 @@ export function AnimatedMoney({
   className = "",
   splitDecimals = true,
   animateOnMount = true,
+  animateOnChange = false,
   duration = 600,
   variant = "hero",
 }: AnimatedMoneyProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const shouldAnimate = animateOnMount && !prefersReducedMotion;
-  const displayCents = useCountUp(cents, { duration, enabled: shouldAnimate });
+  const displayCents = useCountUp(cents, {
+    duration,
+    enabled: shouldAnimate,
+    animateOnChange: animateOnChange && !prefersReducedMotion,
+  });
 
   if (variant === "inline") {
     return (

@@ -1,7 +1,7 @@
 /** Only explicit user income edits (salary setup) may persist salary changes. */
 let incomeWriteAllowed = false;
 
-export type IncomeWriteSource = "user_edit" | "onboarding" | "currency_only" | "cycle_carry_forward";
+export type IncomeWriteSource = "user_edit" | "onboarding" | "currency_only";
 
 export function runWithIncomeWrite<T>(source: IncomeWriteSource, fn: () => T): T {
   const prev = incomeWriteAllowed;
@@ -20,7 +20,7 @@ let currentSource: IncomeWriteSource | null = null;
 
 export function canWriteMonthlyIncome(source?: IncomeWriteSource): boolean {
   if (incomeWriteAllowed) return true;
-  if (source === "user_edit" || source === "onboarding" || source === "currency_only" || source === "cycle_carry_forward") return true;
+  if (source === "user_edit" || source === "onboarding" || source === "currency_only") return true;
   return false;
 }
 

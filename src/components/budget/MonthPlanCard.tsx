@@ -1,11 +1,15 @@
+import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   AlertCircle,
+  ChevronRight,
   CircleCheck,
   Gauge,
   Info,
   LineChart,
   PiggyBank,
   Receipt,
+  Shield,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -25,6 +29,7 @@ import {
 import { getNextSalaryDateForMonth } from "@/utils/budgetPlanner";
 import type { FinancialPace } from "@/utils/financialPace";
 import { HeroMoney } from "@/components/budget/HeroMoney";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
 import { PlanSegmentBar, PlanStatTile } from "@/components/budget/PlanHeroSegments";
 import { cn } from "@/lib/utils";
 import {
@@ -52,14 +57,21 @@ export interface MonthPlanCardProps {
   compact?: boolean;
   /** Predictive pace context for the home dashboard. */
   pace?: FinancialPace;
+  /** Opens the adjust-savings flow when Safe to Spend is negative. */
+  onAdjustSavings?: () => void;
   incomeCycle?: IncomeCycle | null;
   /** Display-only chip, e.g. "↑ 8% better than April". */
   monthComparisonLabel?: string | null;
   /** Optional adjustments applied on top of the base safe-to-spend formula. */
   rolloverBoostCents?: number;
   pausedGoalsBoostCents?: number;
+  goalReallocationBoostCents?: number;
   /** Shown under the hero when a carry-over boost is active. */
   carriedOverLabel?: string | null;
+  /** False until the user has saved at least one income entry for this cycle. */
+  hasIncomeForCycle?: boolean;
+  /** Opens income entry (Budget / SalarySetup). */
+  onAddIncome?: () => void;
 }
 
 type HeroHealthLevel = "on_track" | "tight" | "action_needed";
@@ -108,7 +120,7 @@ function resolveHeroHealthStatus(params: {
       level: "action_needed",
       title: "Action needed",
       description:
-        "Spending, bills, and savings exceed your income this cycle — review the breakdown above.",
+        "Your spending, savings, and bills exceed your available income this cycle.",
     };
   }
 
@@ -186,11 +198,14 @@ function SafeToSpendBreakdownTooltip({
 function HeroHealthBlock({ status }: { status: HeroHealthStatus }) {
   const { pillClass, icon: Icon, iconClass } = HERO_HEALTH_UI[status.level];
   return (
-    <div className="mt-2" role="status" aria-live="polite">
-      <span className={cn("hero-health-pill", pillClass)}>
+    <div className="mt-2 space-y-2 hero-health-block" role="status" aria-live="polite">
+      <span key={status.level} className={cn("hero-health-pill hero-health-pill--animated", pillClass)}>
         <Icon className={cn("h-3.5 w-3.5 shrink-0", iconClass)} aria-hidden />
         {status.title}
       </span>
+      <p className="hero-safe-description hero-safe-description--animated text-sm leading-relaxed text-[#746A5D]">
+        {status.description}
+      </p>
     </div>
   );
 }
@@ -198,20 +213,120 @@ function HeroHealthBlock({ status }: { status: HeroHealthStatus }) {
 const HERO_METRIC_ACCENTS: Record<string, { bg: string; color: string }> = {
   income: { bg: "#EFE7F7", color: "#6E4E91" },
   spent: { bg: "hsl(96 22% 88%)", color: "#4A5C40" },
-  saved: { bg: "#EFE7F7", color: "#6E4E91" },
-  bills: { bg: "#EFE7F7", color: "#6E4E91" },
+  saved: { bg: "hsl(3 29% 92%)", color: "#7A4542" },
+  bills: { bg: "hsl(269 30% 92%)", color: "#5C4580" },
 };
+
+function WalletWarningIllustration() {
+  return (
+    <div className="hero-wallet-warning" aria-hidden>
+      <div className="hero-wallet-warning__wallet">
+        <Wallet className="hero-wallet-warning__icon" strokeWidth={1.5} />
+      </div>
+      <div className="hero-wallet-warning__badge">
+        <AlertCircle className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
+      </div>
+    </div>
+  );
+}
+
+function NegativeActionPanel({
+  overAmountCents,
+  savingsAllocationCents,
+  currency,
+  onAdjustSavings,
+}: {
+  overAmountCents: number;
+  savingsAllocationCents: number;
+  currency: string;
+  onAdjustSavings?: () => void;
+}) {
+  const recommendedReductionCents = Math.min(overAmountCents, savingsAllocationCents);
+  const canReduceSavings = recommendedReductionCents > 0;
+
+  return (
+    <div className="hero-action-panel" role="region" aria-label="Recommended actions to get back on track">
+      <div className="hero-action-panel__main">
+        <div className="hero-action-panel__alert" aria-hidden>
+          <AlertCircle className="h-4 w-4 text-[#9C5A56]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug text-[#2B221B]">
+            You&apos;re {formatMoney(overAmountCents, currency)} over your available budget this cycle.
+          </p>
+          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9C5A56]">
+            Recommended
+          </p>
+          <p className="mt-1 text-sm leading-relaxed text-[#746A5D]">
+            {canReduceSavings
+              ? `Reduce this month's savings by ${formatMoney(recommendedReductionCents, currency)} to get back on track.`
+              : "Review your bills and discretionary spending to get back on track."}
+          </p>
+          {canReduceSavings && onAdjustSavings ? (
+            <button
+              type="button"
+              onClick={onAdjustSavings}
+              className="hero-action-panel__cta mt-3 inline-flex items-center justify-center rounded-full bg-[#6E4E91] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5C4580] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E4E91]/40"
+            >
+              Adjust savings
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="hero-action-panel__divider" aria-hidden />
+
+      <div className="hero-action-panel__options">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#746A5D]">
+          Other options
+        </p>
+        <ul className="mt-2 space-y-1">
+          <li>
+            <Link
+              to="/bills"
+              className="hero-action-panel__option"
+            >
+              <Wallet className="h-4 w-4 shrink-0 text-[#6E4E91]" aria-hidden />
+              <span className="min-w-0 flex-1 text-sm font-medium text-[#2B221B]">
+                Review upcoming bill
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#746A5D]/60" aria-hidden />
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/expenses"
+              className="hero-action-panel__option"
+            >
+              <Shield className="h-4 w-4 shrink-0 text-[#6E4E91]" aria-hidden />
+              <span className="min-w-0 flex-1 text-sm font-medium text-[#2B221B]">
+                Reduce discretionary spending
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-[#746A5D]/60" aria-hidden />
+            </Link>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 function HeroMetricCell({
   icon: Icon,
   label,
   value,
   accentKey,
+  amountCents,
+  currency,
+  animateAmount = false,
 }: {
   icon: typeof Receipt;
   label: string;
   value: string;
   accentKey: keyof typeof HERO_METRIC_ACCENTS;
+  amountCents?: number;
+  currency?: string;
+  animateAmount?: boolean;
 }) {
   const accent = HERO_METRIC_ACCENTS[accentKey];
   return (
@@ -224,7 +339,20 @@ function HeroMetricCell({
       </div>
       <div className="min-w-0">
         <p className="text-[11px] font-medium leading-snug text-muted-foreground">{label}</p>
-        <p className="money-amount-sm mt-1 text-[0.9375rem] font-semibold leading-tight">{value}</p>
+        <p className="money-amount-sm mt-1 text-[0.9375rem] font-semibold leading-tight">
+          {animateAmount && amountCents != null && currency ? (
+            <AnimatedMoney
+              cents={amountCents}
+              currency={currency}
+              variant="inline"
+              animateOnMount={false}
+              animateOnChange
+              duration={220}
+            />
+          ) : (
+            value
+          )}
+        </p>
       </div>
     </div>
   );
@@ -241,14 +369,43 @@ export function MonthPlanCard({
   weeklySafeToSpendCents,
   recurringBillsCount = 0,
   onAdjust,
+  onAdjustSavings,
   compact = false,
   pace,
   incomeCycle = null,
   monthComparisonLabel = null,
   rolloverBoostCents = 0,
   pausedGoalsBoostCents = 0,
+  goalReallocationBoostCents = 0,
+  hasIncomeForCycle = salaryCents > 0,
+  onAddIncome,
 }: MonthPlanCardProps) {
-  const isOver = remainingCents < 0;
+  const isOver = hasIncomeForCycle && remainingCents < 0;
+  const [negativeUiVisible, setNegativeUiVisible] = useState(isOver);
+  const [negativeUiExiting, setNegativeUiExiting] = useState(false);
+
+  useEffect(() => {
+    if (isOver) {
+      setNegativeUiExiting(false);
+      setNegativeUiVisible(true);
+      return;
+    }
+
+    if (!negativeUiVisible) return;
+
+    setNegativeUiExiting(true);
+    const timer = window.setTimeout(() => {
+      setNegativeUiVisible(false);
+      setNegativeUiExiting(false);
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [isOver, negativeUiVisible]);
+
+  const activeSavedCents = Math.max(
+    0,
+    savingsAllocationCents - pausedGoalsBoostCents - goalReallocationBoostCents,
+  );
   const spentPct = calculateSpentPercentage(spentSoFarCents, salaryCents);
   const cycleConfigured = isIncomeCycleConfigured(incomeCycle);
   const dailyPaceCents =
@@ -269,7 +426,7 @@ export function MonthPlanCard({
   const dailySpendingPaceCents =
     pace?.typicalDailySpendCents ?? pace?.actualDailySpendCents ?? 0;
   const heroHealth =
-    compact && salaryCents > 0
+    compact && hasIncomeForCycle
       ? resolveHeroHealthStatus({
         safeToSpendCents: remainingCents,
         daysRemaining: daysLeft,
@@ -278,7 +435,7 @@ export function MonthPlanCard({
       })
       : null;
   const breakdownTooltip =
-    salaryCents > 0 ? (
+    hasIncomeForCycle ? (
       <SafeToSpendBreakdownTooltip
         breakdown={{
           salaryCents,
@@ -299,25 +456,27 @@ export function MonthPlanCard({
         ? "bg-[#9C5A56]"
         : "bg-[#6B7F5E]";
 
-  const compactHeroMetrics =
-    salaryCents > 0 ? (
+  const compactHeroMetrics = (
       <div className="hero-metric-cells">
         <HeroMetricCell
           icon={Wallet}
-          label="Income"
-          value={formatMoney(salaryCents, currency)}
+          label="Income this cycle"
+          value={hasIncomeForCycle ? formatMoney(salaryCents, currency) : "Not entered"}
           accentKey="income"
         />
         <HeroMetricCell
           icon={TrendingUp}
-          label="Spent this month"
+          label="Spent this cycle"
           value={formatMoney(spentSoFarCents, currency)}
           accentKey="spent"
         />
         <HeroMetricCell
           icon={PiggyBank}
-          label="Saved this month"
-          value={formatMoney(savingsAllocationCents, currency)}
+          label="Saved this cycle"
+          value={formatMoney(activeSavedCents, currency)}
+          amountCents={activeSavedCents}
+          currency={currency}
+          animateAmount
           accentKey="saved"
         />
         <HeroMetricCell
@@ -327,7 +486,7 @@ export function MonthPlanCard({
           accentKey="bills"
         />
       </div>
-    ) : null;
+    );
 
   return (
     <section
@@ -342,7 +501,7 @@ export function MonthPlanCard({
     >
       {compact ? (
         <>
-          <div className="hero-top-grid">
+          <div className="hero-safe-top">
             <div className="hero-top-left">
               <p
                 id="month-plan-heading"
@@ -350,7 +509,7 @@ export function MonthPlanCard({
               >
                 <span
                   className={cn(
-                    "inline-block h-2 w-2 shrink-0 rounded-full",
+                    "hero-status-dot inline-block h-2 w-2 shrink-0 rounded-full",
                     headerStatusDotClass,
                   )}
                   aria-hidden
@@ -360,17 +519,29 @@ export function MonthPlanCard({
 
               <div
                 className={cn(
-                  "money-hero mt-3 sm:mt-4",
-                  isOver ? "text-foreground/90" : "text-foreground",
+                  "money-hero hero-safe-amount mt-3 sm:mt-3.5",
+                  isOver ? "text-foreground/90" : "text-foreground hero-safe-amount--positive",
                   "text-[clamp(2.85rem,7.5vw,4.65rem)]",
                 )}
               >
-                <HeroMoney cents={remainingCents} currency={currency} />
+                {hasIncomeForCycle ? (
+                  <AnimatedMoney
+                    cents={remainingCents}
+                    currency={currency}
+                    animateOnMount
+                    animateOnChange
+                    duration={220}
+                  />
+                ) : (
+                  <span className="text-[clamp(1.75rem,5vw,2.75rem)] font-semibold tracking-tight text-foreground/80">
+                    Not available
+                  </span>
+                )}
               </div>
 
               {heroHealth ? <HeroHealthBlock status={heroHealth} /> : null}
 
-              {salaryCents > 0 && dailyPaceCents > 0 ? (
+              {hasIncomeForCycle && dailyPaceCents > 0 ? (
                 <p className="mt-2.5 flex items-center gap-1.5 text-sm font-medium text-[#746A5D]">
                   <LineChart className="h-3.5 w-3.5 shrink-0 text-[#6E4E91]" aria-hidden />
                   <span className="money-display-md text-foreground">
@@ -380,15 +551,61 @@ export function MonthPlanCard({
                 </p>
               ) : null}
 
-              {salaryCents <= 0 ? (
-                <p className="mt-3 text-sm leading-relaxed text-[#746A5D]">
-                  Add your monthly income to see what&apos;s left in this cycle.
-                </p>
+              {!hasIncomeForCycle ? (
+                <div className="mt-3 space-y-3">
+                  <p className="text-base font-semibold text-foreground">Add your income</p>
+                  <p className="text-sm leading-relaxed text-[#746A5D]">
+                    Enter the income received during this cycle to calculate your Safe to Spend.
+                  </p>
+                  {onAddIncome ? (
+                    <button
+                      type="button"
+                      onClick={onAddIncome}
+                      className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      Add income
+                    </button>
+                  ) : (
+                    <Link
+                      to="/budget"
+                      className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      Add income
+                    </Link>
+                  )}
+                </div>
               ) : null}
             </div>
 
-            {compactHeroMetrics}
+            {negativeUiVisible ? (
+              <div
+                className={cn(
+                  "hero-wallet-warning-wrap",
+                  negativeUiExiting && "hero-wallet-warning-wrap--exiting",
+                )}
+              >
+                <WalletWarningIllustration />
+              </div>
+            ) : null}
           </div>
+
+          {negativeUiVisible && hasIncomeForCycle ? (
+            <div
+              className={cn(
+                "hero-action-panel-wrap",
+                negativeUiExiting && "hero-action-panel-wrap--exiting",
+              )}
+            >
+              <NegativeActionPanel
+                overAmountCents={Math.abs(remainingCents)}
+                savingsAllocationCents={savingsAllocationCents}
+                currency={currency}
+                onAdjustSavings={onAdjustSavings}
+              />
+            </div>
+          ) : null}
+
+          {compactHeroMetrics}
         </>
       ) : (
         <>
@@ -426,7 +643,13 @@ export function MonthPlanCard({
                 "text-[clamp(3.25rem,8.5vw,5rem)]",
               )}
             >
-              <HeroMoney cents={remainingCents} currency={currency} />
+              {hasIncomeForCycle ? (
+                <HeroMoney cents={remainingCents} currency={currency} />
+              ) : (
+                <span className="text-[clamp(1.75rem,5vw,2.75rem)] font-semibold tracking-tight text-foreground/80">
+                  Not available
+                </span>
+              )}
             </div>
           </div>
 
@@ -449,14 +672,14 @@ export function MonthPlanCard({
                 to reconcile this cycle.
               </p>
             ) : null}
-            {salaryCents <= 0 ? (
+            {!hasIncomeForCycle ? (
               <p className="text-body-calm">
-                Add your monthly income to see what&apos;s left in this cycle.
+                Add your income for this cycle to see what&apos;s left to spend.
               </p>
             ) : null}
           </div>
 
-          {salaryCents > 0 ? (
+          {hasIncomeForCycle ? (
             <>
               <div className="mt-6">
                 <PlanSegmentBar

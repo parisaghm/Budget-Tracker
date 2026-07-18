@@ -1,8 +1,11 @@
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { parseISO } from "date-fns";
 import type { IncomeCycle } from "@/types/incomeCycle";
+import type { BudgetCycle } from "@/types/budgetCycle";
 import { formatMonth, getPreviousMonth } from "@/utils/money";
 import {
   formatBudgetMonthSelectorLabel,
+  formatIncomeDateLabel,
   isIncomeCycleConfigured,
 } from "@/utils/incomeCycle";
 import { cn } from "@/lib/utils";
@@ -11,6 +14,8 @@ interface MonthSelectorProps {
   currentMonth: string;
   onMonthChange: (month: string) => void;
   incomeCycle?: IncomeCycle | null;
+  /** Frozen budget cycle for the selected month; labels use its exact dates when provided. */
+  selectedCycle?: BudgetCycle | null;
   variant?: "default" | "mobile";
 }
 
@@ -25,6 +30,7 @@ export function MonthSelector({
   currentMonth,
   onMonthChange,
   incomeCycle = null,
+  selectedCycle = null,
   variant = "default",
 }: MonthSelectorProps) {
   const cycleConfigured = isIncomeCycleConfigured(incomeCycle);
@@ -35,9 +41,18 @@ export function MonthSelector({
     onMonthChange(newMonth);
   };
 
-  const label = cycleConfigured
-    ? formatBudgetMonthSelectorLabel(incomeCycle, currentMonth)
-    : formatMonth(currentMonth);
+  // Frozen cycle dates win over the schedule-derived window so the header
+  // always matches what the dashboard actually calculates with.
+  const frozenLabel = selectedCycle
+    ? `${formatIncomeDateLabel(parseISO(selectedCycle.startDate))} – ${formatIncomeDateLabel(parseISO(selectedCycle.endDate))}`
+    : null;
+  const label = frozenLabel
+    ? selectedCycle!.status === "active"
+      ? `Current cycle · ${frozenLabel}`
+      : frozenLabel
+    : cycleConfigured
+      ? formatBudgetMonthSelectorLabel(incomeCycle, currentMonth)
+      : formatMonth(currentMonth);
 
   const isMobile = variant === "mobile";
   const navBtnClass = cn(
