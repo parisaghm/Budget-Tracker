@@ -1,35 +1,94 @@
 import { Helmet } from "react-helmet-async";
+import { useMemo } from "react";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { useBudgetAdjustments } from "@/hooks/useBudgetAdjustments";
+import { useOnboardingProfile } from "@/hooks/useOnboardingProfile";
 import { useAuth } from "@/context/AuthContext";
 import { useDemo } from "@/context/DemoContext";
 import { AppShellHeader } from "@/components/AppShellHeader";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
 import { SavingsGoals } from "@/components/SavingsGoals";
+import {
+  computeAvailableToAllocateCents,
+  computePlannedSavingsCents,
+  computePlanPausedBoostCents,
+  computePlanReallocationBoostCents,
+  resolveAuthoritativeSavingsPlan,
+} from "@/utils/savingsAllocation";
+import { toast } from "sonner";
 
 export default function GoalsPage() {
   const { user } = useAuth();
   const { isDemoMode } = useDemo();
+  const { onboardingData } = useOnboardingProfile();
   const {
     currentMonth,
     setCurrentMonth,
     budget,
-    remainingCents,
     savingsGoals,
     addSavingsGoal,
-    addContributionToGoal,
     updateSavingsGoal,
     deleteSavingsGoal,
     addExpense,
     allCategories,
     incomeCycle,
+    selectedCycle,
+    contributionsByGoal,
+    allocatedThisCycleCents,
+    saveCycleAllocation,
+    isSavingCycleAllocation,
   } = useSupabaseFinanceData();
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
   const { adjustments } = useBudgetAdjustments(userId || undefined, currentMonth);
   const activeCurrency = budget?.currency ?? "EUR";
-  const adjustedRemaining = (remainingCents ?? 0) + adjustments.rolloverBoostCents;
+
+  const authoritativePlan = useMemo(
+    () => resolveAuthoritativeSavingsPlan(savingsGoals),
+    [savingsGoals],
+  );
+
+  const pausedGoalsBoostCents = useMemo(
+    () =>
+      computePlanPausedBoostCents({
+        goals: savingsGoals,
+        pausedGoalIds: adjustments.pausedGoalIds,
+        allocatedThisCycleByGoal: contributionsByGoal,
+      }),
+    [adjustments.pausedGoalIds, contributionsByGoal, savingsGoals],
+  );
+  const goalReallocationBoostCents = useMemo(
+    () =>
+      computePlanReallocationBoostCents({
+        goals: savingsGoals,
+        goalReallocationCents: adjustments.goalReallocationCents,
+      }),
+    [adjustments.goalReallocationCents, savingsGoals],
+  );
+
+  const plannedSavingsCents = useMemo(
+    () =>
+      computePlannedSavingsCents({
+        goals: savingsGoals,
+        allocatedThisCycleByGoal: contributionsByGoal,
+        pausedGoalsBoostCents,
+        goalReallocationBoostCents,
+      }),
+    [
+      contributionsByGoal,
+      goalReallocationBoostCents,
+      pausedGoalsBoostCents,
+      savingsGoals,
+    ],
+  );
+
+  const availableToAllocateCents = computeAvailableToAllocateCents(
+    plannedSavingsCents,
+    allocatedThisCycleCents,
+  );
+
+  const canAllocate = Boolean(selectedCycle?.id) && !isDemoMode;
 
   return (
     <>
@@ -50,10 +109,31 @@ export default function GoalsPage() {
         <main className="mx-auto w-full max-w-2xl flex-1 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-4 lg:px-8">
           <SavingsGoals
             goals={savingsGoals}
-            remainingCents={adjustedRemaining}
             currency={activeCurrency}
+            hasSavingsPlan={authoritativePlan.hasPlan}
+            plannedSavingsCents={plannedSavingsCents}
+            allocatedThisCycleCents={allocatedThisCycleCents}
+            availableToAllocateCents={availableToAllocateCents}
+            contributionsByGoal={contributionsByGoal}
+            canAllocate={canAllocate}
+            isSavingAllocation={isSavingCycleAllocation}
+            suggestedPlanMonthlyCents={onboardingData.monthlySavingsGoalCents}
+            onSaveAllocation={async (payload) => {
+              if (isDemoMode) {
+                toast.info("Sample budget", {
+                  description: "Sign in to allocate savings to goals.",
+                });
+                return;
+              }
+              if (!authoritativePlan.hasPlan) {
+                toast.error("Savings plan not set", {
+                  description: "Set your monthly savings plan before allocating.",
+                });
+                return;
+              }
+              await saveCycleAllocation.mutateAsync(payload);
+            }}
             onAddGoal={addSavingsGoal}
-            onAddContribution={addContributionToGoal}
             onUpdateGoal={updateSavingsGoal}
             onDeleteGoal={deleteSavingsGoal}
           />

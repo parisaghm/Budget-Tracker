@@ -72,5 +72,9 @@ npm run dev
 
 Parisa Ghasemi
 
+## Credits
+
+Emoji icons by [OpenMoji](https://openmoji.org) — licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
 ## ⭐ If you like this project
 Give the repository a star ⭐ to support the project.

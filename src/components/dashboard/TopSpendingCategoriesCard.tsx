@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowUpRight } from "lucide-react";
 import type { CategoryDef, Expense } from "@/types/finance";
 import { formatMoney } from "@/utils/money";
-import { getCategoryIcon } from "@/utils/categoryIcons";
+import { CategoryIconAvatar } from "@/components/CategoryIconAvatar";
 import { Button } from "@/components/ui/button";
 
 const CATEGORY_PALETTE = [
@@ -82,18 +82,16 @@ export function TopSpendingCategoriesCard({
         <>
           <ul className="mt-4 space-y-3" role="list">
             {topCategories.map((item, index) => {
-              const theme = CATEGORY_PALETTE[index % CATEGORY_PALETTE.length];
-              const Icon = getCategoryIcon(item.category.iconKey);
-
               return (
                 <li key={item.category.value}>
                   <div className="bill-row-lifted flex items-center gap-3 p-3">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                      style={{ backgroundColor: theme.bg }}
-                    >
-                      <Icon className="h-4 w-4 text-primary" aria-hidden />
-                    </div>
+                    <CategoryIconAvatar
+                      categoryValue={item.category.value}
+                      iconKey={item.category.iconKey}
+                      label={item.category.label}
+                      paletteIndex={index}
+                      size="sm"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="truncate text-sm font-semibold text-foreground">
@@ -106,7 +104,10 @@ export function TopSpendingCategoriesCard({
                       <div className="mt-2 progress-track h-1.5">
                         <div
                           className="h-1.5 rounded-full"
-                          style={{ width: `${item.percent}%`, backgroundColor: theme.bar }}
+                          style={{
+                            width: `${item.percent}%`,
+                            backgroundColor: CATEGORY_PALETTE[index % CATEGORY_PALETTE.length].bar,
+                          }}
                         />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">

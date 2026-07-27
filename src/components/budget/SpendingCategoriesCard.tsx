@@ -125,6 +125,7 @@ export function SpendingCategoriesCard({
           return (
             <li key={cat.value}>
               <SpendingCategoryRow
+                categoryValue={cat.value}
                 categoryLabel={cat.label}
                 iconKey={cat.iconKey}
                 iconBg={theme.bg}
@@ -132,6 +133,7 @@ export function SpendingCategoriesCard({
                 spentCents={spent}
                 limitCents={limitCents}
                 currency={currency}
+                paletteIndex={index}
                 onSetCategoryLimit={
                   onSetCategoryLimit
                     ? (cents) => onSetCategoryLimit(cat.value, cents)

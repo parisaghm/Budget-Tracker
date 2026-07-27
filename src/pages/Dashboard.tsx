@@ -27,7 +27,12 @@ import { NOTIFICATION_SETTINGS_KEY } from "@/utils/notificationPreferences";
 import { computeWeeklySafeToSpend, getNextSalaryDateForMonth } from "@/utils/budgetPlanner";
 import { usePreviousMonthLeftover } from "@/hooks/usePreviousMonthLeftover";
 import { getRolloverBoostBreakdown } from "@/utils/budgetDecisions";
-import { getPausedGoalsAllocationCents, getGoalReallocationBoostCents } from "@/utils/paceSupport";
+import {
+  allocationGoals,
+  computePlanPausedBoostCents,
+  computePlanReallocationBoostCents,
+  resolveAuthoritativeSavingsPlan,
+} from "@/utils/savingsAllocation";
 import { computeSafeToSpendCents } from "@/utils/safeToSpend";
 import { useAdjustSavingsDecision } from "@/hooks/useAdjustSavingsDecision";
 import {
@@ -64,6 +69,8 @@ export default function Dashboard() {
     markRecurringBillPaid,
     categoryLimitsForMonth,
     reverseContributionFromGoal,
+    allocatedThisCycleCents,
+    contributionsByGoal,
   } = useSupabaseFinanceData();
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
@@ -81,14 +88,28 @@ export default function Dashboard() {
     incomeCycle,
   });
 
+  const authoritativePlan = useMemo(
+    () => resolveAuthoritativeSavingsPlan(savingsGoals),
+    [savingsGoals],
+  );
+
   const pausedGoalsBoostCents = useMemo(
-    () => getPausedGoalsAllocationCents(savingsGoals, adjustments.pausedGoalIds),
-    [adjustments.pausedGoalIds, savingsGoals],
+    () =>
+      computePlanPausedBoostCents({
+        goals: savingsGoals,
+        pausedGoalIds: adjustments.pausedGoalIds,
+        allocatedThisCycleByGoal: contributionsByGoal,
+      }),
+    [adjustments.pausedGoalIds, contributionsByGoal, savingsGoals],
   );
 
   const goalReallocationBoostCents = useMemo(
-    () => getGoalReallocationBoostCents(adjustments.goalReallocationCents),
-    [adjustments.goalReallocationCents],
+    () =>
+      computePlanReallocationBoostCents({
+        goals: savingsGoals,
+        goalReallocationCents: adjustments.goalReallocationCents,
+      }),
+    [adjustments.goalReallocationCents, savingsGoals],
   );
 
   const adjustedSafeToSpend = hasIncomeForCycle
@@ -214,6 +235,7 @@ export default function Dashboard() {
           incomeCycle,
           cycleStartIso: selectedCycle?.startDate ?? null,
           cycleEndIso: selectedCycle?.endDate ?? null,
+          cycleId: selectedCycle?.id ?? null,
           onDecided: refresh,
           onTransferBack: reverseContributionFromGoal,
         }
@@ -229,6 +251,7 @@ export default function Dashboard() {
           incomeCycle,
           cycleStartIso: selectedCycle?.startDate ?? null,
           cycleEndIso: selectedCycle?.endDate ?? null,
+          cycleId: selectedCycle?.id ?? null,
           isDemoMode: true,
           onDecided: refresh,
           onTransferBack: async () => {},
@@ -477,7 +500,23 @@ export default function Dashboard() {
               </div>
 
               <div className="dashboard-home-section dashboard-home-section--goals">
-                <GoalsSnapshotCard goals={savingsGoals} />
+                <GoalsSnapshotCard
+                  goals={allocationGoals(savingsGoals)}
+                  currency={activeCurrency}
+                  plannedSavingsCents={
+                    authoritativePlan.hasPlan
+                      ? Math.max(
+                          0,
+                          savingsGoalAllocationCents -
+                            pausedGoalsBoostCents -
+                            goalReallocationBoostCents,
+                        )
+                      : undefined
+                  }
+                  allocatedToGoalsCents={
+                    authoritativePlan.hasPlan ? allocatedThisCycleCents : undefined
+                  }
+                />
               </div>
             </div>
           ) : null}

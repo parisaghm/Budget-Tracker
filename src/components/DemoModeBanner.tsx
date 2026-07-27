@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { Leaf, Sparkles } from "lucide-react";
 import { useDemo } from "@/context/DemoContext";
+import { useAuth } from "@/context/AuthContext";
 
 export function DemoModeBanner() {
   const { exitDemo } = useDemo();
+  const { user } = useAuth();
 
   return (
     <div
@@ -28,17 +30,27 @@ export function DemoModeBanner() {
             </p>
             <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Leaf className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-              No bank connection — just a calm preview.
+              No bank connection — just a calm preview. Nothing here is saved to your account.
             </p>
           </div>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
-          <Link
-            to="/signup"
-            className="btn-primary touch-hit inline-flex min-h-10 items-center justify-center px-4 py-2.5 text-center text-sm font-semibold"
-          >
-            Create your account
-          </Link>
+          {user ? (
+            <button
+              type="button"
+              onClick={exitDemo}
+              className="btn-primary touch-hit inline-flex min-h-10 items-center justify-center px-4 py-2.5 text-center text-sm font-semibold"
+            >
+              Continue setup
+            </button>
+          ) : (
+            <Link
+              to="/signup"
+              className="btn-primary touch-hit inline-flex min-h-10 items-center justify-center px-4 py-2.5 text-center text-sm font-semibold"
+            >
+              Create your account
+            </Link>
+          )}
           <button
             type="button"
             onClick={exitDemo}

@@ -20,6 +20,7 @@ import {
 } from "@/utils/incomeCycle";
 import { eurosToCents, formatMoney } from "@/utils/money";
 import { getMovableGoalSources } from "@/utils/paceSupport";
+import { mergeCycleContributions } from "@/utils/savingsAllocation";
 import { supabase } from "@/lib/supabase/client";
 import { endOfMonth, format, parseISO, startOfMonth } from "date-fns";
 
@@ -36,6 +37,7 @@ export interface AdjustSavingsDecisionContext {
   /** Frozen cycle window (half-open) from budget_cycles when available. */
   cycleStartIso?: string | null;
   cycleEndIso?: string | null;
+  cycleId?: string | null;
   isDemoMode?: boolean;
   onDecided: () => void;
   onTransferBack: (goalId: string, amountCents: number) => Promise<void>;
@@ -69,10 +71,48 @@ async function fetchCycleContributionsByGoal(
   userId: string,
   startIso: string,
   endIso: string,
+  cycleId?: string | null,
 ): Promise<Record<string, number>> {
+  // Prefer cycle_id rows; fall back to legacy NULL cycle_id rows in the window only.
+  if (cycleId) {
+    const { data: cycleRows, error: cycleError } = await supabase
+      .from("goal_contributions")
+      .select("id, goal_id, amount_cents, cycle_id, created_at")
+      .eq("user_id", userId)
+      .eq("cycle_id", cycleId);
+
+    if (!cycleError && cycleRows) {
+      const { data: legacyRows } = await supabase
+        .from("goal_contributions")
+        .select("id, goal_id, amount_cents, cycle_id, created_at")
+        .eq("user_id", userId)
+        .is("cycle_id", null)
+        .gte("created_at", `${startIso}T00:00:00`)
+        .lte("created_at", `${endIso}T23:59:59`);
+
+      return mergeCycleContributions({
+        cycleId,
+        cycleIdRows: cycleRows as Array<{
+          id: string;
+          goal_id: string;
+          amount_cents: number;
+          cycle_id: string | null;
+          created_at: string;
+        }>,
+        legacyRows: (legacyRows ?? []) as Array<{
+          id: string;
+          goal_id: string;
+          amount_cents: number;
+          cycle_id: string | null;
+          created_at: string;
+        }>,
+      });
+    }
+  }
+
   const { data, error } = await supabase
     .from("goal_contributions")
-    .select("goal_id, amount_cents, created_at")
+    .select("goal_id, amount_cents, created_at, cycle_id")
     .eq("user_id", userId)
     .gte("created_at", `${startIso}T00:00:00`)
     .lte("created_at", `${endIso}T23:59:59`);
@@ -102,6 +142,7 @@ export function useAdjustSavingsDecision(context: AdjustSavingsDecisionContext) 
     incomeCycle,
     cycleStartIso = null,
     cycleEndIso = null,
+    cycleId = null,
     isDemoMode = false,
     onDecided,
     onTransferBack,
@@ -161,9 +202,9 @@ export function useAdjustSavingsDecision(context: AdjustSavingsDecisionContext) 
       return;
     }
     const { startIso, endIso } = resolveCycleWindowIso(month, incomeCycle, cycleStartIso, cycleEndIso);
-    const byGoal = await fetchCycleContributionsByGoal(userId, startIso, endIso);
+    const byGoal = await fetchCycleContributionsByGoal(userId, startIso, endIso, cycleId);
     setCycleContributionsByGoal(byGoal);
-  }, [cycleEndIso, cycleStartIso, incomeCycle, isDemoMode, month, userId]);
+  }, [cycleEndIso, cycleId, cycleStartIso, incomeCycle, isDemoMode, month, userId]);
 
   const openSheet = useCallback(() => {
     if (deficitCents <= 0 || maxReductionCents <= 0) return;

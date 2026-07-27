@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { Lightbulb, Zap } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
 import type { RecurringBill } from "@/types/finance";
 import { formatMoney } from "@/utils/money";
 import { formatBillDueDateLabel, getDaysUntil } from "@/utils/recurringBills";
-import { getCategoryIcon } from "@/utils/categoryIcons";
+import { CategoryIconAvatar } from "@/components/CategoryIconAvatar";
 import { Button } from "@/components/ui/button";
 
 interface UpcomingBillsCardProps {
@@ -88,13 +88,16 @@ export function UpcomingBillsCard({
         <ul className="mt-5 space-y-2.5" role="list">
           {preview.map((bill) => {
             const days = getDaysUntil(bill.nextDueDate);
-            const Icon = bill.category ? getCategoryIcon(bill.category as never) : Zap;
             return (
               <li key={bill.id}>
                 <div className="bill-row-lifted">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFE7F7]">
-                    <Icon className="h-4 w-4 text-[#6E4E91]" aria-hidden />
-                  </div>
+                  <CategoryIconAvatar
+                    categoryValue={bill.category}
+                    label={bill.name}
+                    size="sm"
+                    className="bg-[#EFE7F7]"
+                    iconClassName="text-[#6E4E91]"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-[#1A1411]">{bill.name}</p>
                     <p className="text-xs leading-relaxed text-[#746A5D]">

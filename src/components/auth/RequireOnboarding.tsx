@@ -2,11 +2,17 @@ import type { ReactElement } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { useOnboardingProfile } from "@/hooks/useOnboardingProfile";
+import { useDemo } from "@/context/DemoContext";
 
 export function RequireOnboarding({ children }: { children: ReactElement }) {
   const location = useLocation();
+  const { isDemoMode } = useDemo();
   const { hasAnyData, isLoading } = useSupabaseFinanceData();
   const { onboardingData, isReady } = useOnboardingProfile();
+
+  if (isDemoMode) {
+    return children;
+  }
 
   if (isLoading || !isReady) {
     return (

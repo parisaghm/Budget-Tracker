@@ -5,6 +5,7 @@ import { Expense, Category, CategoryDef, getCategoryLabel, DEFAULT_CATEGORIES } 
 import { formatMoney, formatDate } from '@/utils/money';
 import { EditExpenseModal } from '@/components/EditExpenseModal';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
+import { CategoryEmojiIcon } from '@/components/icons/CategoryEmojiIcon';
 import { Button } from '@/components/ui/button';
 
 interface ExpenseListProps {
@@ -109,6 +110,14 @@ export function ExpenseList({
             <div key={expense.id} className="expense-row animate-fade-in group">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 mb-0.5">
+                  <CategoryEmojiIcon
+                    categoryValue={expense.category}
+                    iconKey={categories.find((c) => c.value === expense.category)?.iconKey}
+                    label={getCategoryLabel(expense.category, customCatsOnly)}
+                    decorative
+                    className="h-7 w-7"
+                    iconClassName="h-4 w-4"
+                  />
                   <span className={`category-badge ${getCategoryClass(expense.category)}`}>
                     {getCategoryLabel(expense.category, customCatsOnly)}
                   </span>

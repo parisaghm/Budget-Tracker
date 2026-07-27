@@ -47,6 +47,7 @@ export interface MonthPlanCardProps {
   currency: string;
   salaryCents: number;
   fixedBillsCents: number;
+  /** Planned / reserved savings for this cycle (not actual goal contributions). */
   savingsAllocationCents: number;
   spentSoFarCents: number;
   remainingCents: number;
@@ -472,7 +473,7 @@ export function MonthPlanCard({
         />
         <HeroMetricCell
           icon={PiggyBank}
-          label="Saved this cycle"
+          label="Savings planned"
           value={formatMoney(activeSavedCents, currency)}
           amountCents={activeSavedCents}
           currency={currency}
@@ -702,7 +703,7 @@ export function MonthPlanCard({
                 <PlanStatTile
                   label="Goals"
                   value={formatMoneyCompact(savingsAllocationCents, currency)}
-                  sub="Savings + jars"
+                  sub="Savings planned"
                   accentClass="bg-[hsl(var(--segment-goals))]"
                 />
                 <PlanStatTile

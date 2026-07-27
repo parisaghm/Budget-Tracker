@@ -3,7 +3,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Expense, Category, CategoryDef } from '@/types/finance';
 import { formatMoney, eurosToCents, centsToEuros, getCurrencySymbol } from '@/utils/money';
 import { BarChart3, Target, Plus } from 'lucide-react';
-import { getCategoryIcon } from '@/utils/categoryIcons';
+import { CategoryEmojiIcon } from '@/components/icons/CategoryEmojiIcon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -224,10 +224,14 @@ function CategoryBudgetList({
                   onClick={() => onCategorySelect(isSelected ? null : cat.value)}
                   className="flex items-center gap-2 min-w-0 text-left"
                 >
-                  {(() => {
-                    const Icon = getCategoryIcon(cat.iconKey);
-                    return <Icon className="w-4 h-4 text-muted-foreground shrink-0" />;
-                  })()}
+                  <CategoryEmojiIcon
+                    categoryValue={cat.value}
+                    iconKey={cat.iconKey}
+                    label={cat.label}
+                    decorative
+                    className="h-7 w-7 shrink-0"
+                    iconClassName="h-4 w-4"
+                  />
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: getColor(index) }}

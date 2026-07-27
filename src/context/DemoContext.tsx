@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -33,15 +34,29 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isDemoMode, setIsDemoMode] = useState(readDemoFlag);
+  /** Tracks prior auth id so we only clear demo on login/signup (null → user), not when already signed in. */
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!user) return;
-    setIsDemoMode(false);
-    try {
-      sessionStorage.removeItem(DEMO_SESSION_KEY);
-    } catch {
-      // ignore
+    const nextId = user?.id ?? null;
+    const prevId = prevUserIdRef.current;
+
+    if (prevId === undefined) {
+      prevUserIdRef.current = nextId;
+      return;
     }
+
+    // Clear sample mode when a real session begins (login / signup), so new accounts start empty.
+    if (prevId === null && nextId !== null) {
+      setIsDemoMode(false);
+      try {
+        sessionStorage.removeItem(DEMO_SESSION_KEY);
+      } catch {
+        // ignore
+      }
+    }
+
+    prevUserIdRef.current = nextId;
   }, [user]);
 
   const enterDemo = useCallback(() => {
@@ -61,8 +76,9 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       // ignore
     }
     setIsDemoMode(false);
-    navigate("/", { replace: true });
-  }, [navigate]);
+    // Signed-in users return to the app; RequireOnboarding sends incomplete accounts to /onboarding.
+    navigate(user ? "/dashboard" : "/", { replace: true });
+  }, [navigate, user]);
 
   const value = useMemo(
     () => ({

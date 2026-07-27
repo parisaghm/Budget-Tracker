@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { getCategoryIcon } from "@/utils/categoryIcons";
 import {
   categoryStatusLabel,
   resolveCategoryBudgetStatus,
@@ -7,6 +6,7 @@ import {
 } from "@/utils/categoryBudgetStatus";
 import { formatMoney } from "@/utils/money";
 import { CategoryLimitPopover } from "@/components/budget/CategoryLimitPopover";
+import { CategoryIconAvatar } from "@/components/CategoryIconAvatar";
 
 function getProgressFillColor(
   status: CategoryBudgetStatus | null,
@@ -18,6 +18,7 @@ function getProgressFillColor(
 }
 
 export interface SpendingCategoryRowProps {
+  categoryValue?: string;
   categoryLabel: string;
   iconKey: string;
   iconBg: string;
@@ -25,10 +26,12 @@ export interface SpendingCategoryRowProps {
   spentCents: number;
   limitCents?: number;
   currency?: string;
+  paletteIndex?: number;
   onSetCategoryLimit?: (limitCents: number) => void;
 }
 
 export function SpendingCategoryRow({
+  categoryValue,
   categoryLabel,
   iconKey,
   iconBg,
@@ -36,6 +39,7 @@ export function SpendingCategoryRow({
   spentCents,
   limitCents,
   currency = "EUR",
+  paletteIndex,
   onSetCategoryLimit,
 }: SpendingCategoryRowProps) {
   const hasLimit = limitCents != null && limitCents > 0;
@@ -45,17 +49,18 @@ export function SpendingCategoryRow({
       : 0;
   const status = resolveCategoryBudgetStatus(spentCents, limitCents);
   const fillColor = getProgressFillColor(status, fallbackBarColor);
-  const Icon = getCategoryIcon(iconKey);
   const [editOpen, setEditOpen] = useState(false);
 
   return (
     <div className="spending-category-row flex items-start gap-3">
-      <div
-        className="spending-category-row__icon flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-        style={{ backgroundColor: iconBg }}
-      >
-        <Icon className="h-4 w-4 text-foreground/70" aria-hidden />
-      </div>
+      <CategoryIconAvatar
+        categoryValue={categoryValue}
+        iconKey={iconKey}
+        label={categoryLabel}
+        paletteIndex={paletteIndex}
+        backgroundColor={iconBg}
+        size="sm"
+      />
       <div className="spending-category-row__body min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-sm font-semibold leading-tight text-foreground">{categoryLabel}</p>

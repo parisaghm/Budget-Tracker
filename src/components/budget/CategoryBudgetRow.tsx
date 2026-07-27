@@ -1,13 +1,12 @@
 import { useState } from "react";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { getCategoryIcon } from "@/utils/categoryIcons";
+import { CategoryIconAvatar } from "@/components/CategoryIconAvatar";
 import {
   managementStatusBarColor,
   resolveCategoryManagementStatus,
 } from "@/utils/categoryBudgetStatus";
 import { formatMoney } from "@/utils/money";
-import { getCategoryTheme } from "@/utils/categoryTheme";
 import { CategoryLimitPopover } from "@/components/budget/CategoryLimitPopover";
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { cn } from "@/lib/utils";
@@ -63,8 +62,6 @@ export function CategoryBudgetRow({
   const hasLimit = limitCents > 0;
   const managementStatus = resolveCategoryManagementStatus(spentCents, limitCents);
   const fillColor = managementStatusBarColor(managementStatus);
-  const theme = getCategoryTheme(paletteIndex);
-  const Icon = getCategoryIcon(iconKey);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -92,12 +89,13 @@ export function CategoryBudgetRow({
         className="budget-category-row group rounded-lg border border-border/50 bg-card/30 transition-colors hover:bg-accent/20"
       >
         <div className="flex min-w-0 items-start gap-2 p-2.5">
-          <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-            style={{ backgroundColor: theme.bg }}
-          >
-            <Icon className="h-3.5 w-3.5 text-foreground/70" aria-hidden />
-          </div>
+          <CategoryIconAvatar
+            categoryValue={categoryValue}
+            iconKey={iconKey}
+            label={categoryLabel}
+            paletteIndex={paletteIndex}
+            size="sm"
+          />
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">

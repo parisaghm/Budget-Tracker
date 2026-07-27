@@ -27,10 +27,10 @@ export interface CategoryDef {
 }
 
 export const DEFAULT_CATEGORIES: CategoryDef[] = [
-  { id: 'groceries', value: 'groceries', label: 'Groceries', iconKey: 'shopping-basket', isCustom: false },
+  { id: 'groceries', value: 'groceries', label: 'Groceries', iconKey: 'shopping-cart', isCustom: false },
   { id: 'shopping', value: 'shopping', label: 'Shopping', iconKey: 'shopping-cart', isCustom: false },
   { id: 'entertainment', value: 'entertainment', label: 'Entertainment', iconKey: 'party-popper', isCustom: false },
-  { id: 'other', value: 'other', label: 'Other', iconKey: 'more-horizontal', isCustom: false },
+  { id: 'other', value: 'other', label: 'Other', iconKey: 'wallet', isCustom: false },
 ];
 
 /**

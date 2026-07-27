@@ -26,6 +26,8 @@ import {
 import { DEFAULT_CATEGORY_ICON_KEY, inferIconKeyFromLabel } from "@/utils/categoryIcons";
 import { getCurrentMonth, getPreviousMonth, normalizeCurrencyCode, normalizeYearMonthYm } from "@/utils/money";
 import { calculateGoalPlan } from "@/utils/goalPlan";
+import { useCycleGoalContributions } from "@/hooks/useCycleGoalContributions";
+import { computeGrossSavingsAllocationCents } from "@/utils/savingsAllocation";
 import {
   formatSupabaseDateCellToIso,
   getNextDateForFrequency,
@@ -967,6 +969,19 @@ function useFinanceDataInternal() {
     previousCycle?.id,
   );
 
+  const reloadFinanceData = useCallback(async () => {
+    if (isDemoMode || !user) return;
+    await loadFromSupabase(user.id, { showLoading: false });
+  }, [isDemoMode, loadFromSupabase, user]);
+
+  const cycleGoalContributions = useCycleGoalContributions({
+    userId: !isDemoMode && user ? user.id : undefined,
+    cycleId: selectedCycle?.id,
+    cycleStartIso: selectedCycle?.startDate,
+    cycleEndIso: selectedCycle?.endDate,
+    onSaved: reloadFinanceData,
+  });
+
   const totalIncomeThisCycleCents = isDemoMode
     ? (currentMonthData.budget?.salaryCents ?? 0)
     : cycleIncome.totalIncomeCents;
@@ -1163,6 +1178,40 @@ function useFinanceDataInternal() {
     ],
   );
 
+  const updateIncomeEntry = useCallback(
+    async (entryId: string, amountCents: number, incomeNote?: string) => {
+      if (isDemoMode) {
+        toast.info("Sample budget", { description: DEMO_EDIT_MESSAGE });
+        return;
+      }
+      if (!user || !hasSupabaseEnv) return;
+
+      await runWithIncomeWrite("user_edit", async () => {
+        await cycleIncome.updateIncome.mutateAsync({
+          entryId,
+          amountCents,
+          note: incomeNote ?? null,
+        });
+      });
+    },
+    [cycleIncome.updateIncome, isDemoMode, user],
+  );
+
+  const deleteIncomeEntry = useCallback(
+    async (entryId: string) => {
+      if (isDemoMode) {
+        toast.info("Sample budget", { description: DEMO_EDIT_MESSAGE });
+        return;
+      }
+      if (!user || !hasSupabaseEnv) return;
+
+      await runWithIncomeWrite("user_edit", async () => {
+        await cycleIncome.deleteIncome.mutateAsync(entryId);
+      });
+    },
+    [cycleIncome.deleteIncome, isDemoMode, user],
+  );
+
   const addExpense = useCallback(
     async (expense: Omit<Expense, "id" | "createdAt" | "budgetMonthId" | "month">) => {
       if (isDemoMode) {
@@ -1177,6 +1226,7 @@ function useFinanceDataInternal() {
       const createdAt = new Date().toISOString();
 
       let newExpense: Expense | null = null;
+      let resolvedBudgetId = budgetId;
       try {
         const { error: budgetError } = await supabase.from("budget_months").upsert(
           {
@@ -1208,7 +1258,7 @@ function useFinanceDataInternal() {
           throw new Error("Could not resolve budget month after save");
         }
 
-        const resolvedBudgetId = resolvedBudget.id;
+        resolvedBudgetId = resolvedBudget.id;
 
         const { error: expenseError } = await supabase.from("expenses").insert({
           id: newExpenseId,
@@ -2154,10 +2204,17 @@ function useFinanceDataInternal() {
   const upcomingBills = getUpcomingBills(data.recurringBills, nextSalaryDate, monthStartIso);
   const upcomingBillsBeforeNextSalary = upcomingBills;
   const upcomingUnpaidBillsCents = upcomingBillsBeforeNextSalary.reduce((sum, bill) => sum + bill.amountCents, 0);
-  const savingsGoalAllocationCents = data.savingsGoals.reduce(
-    (sum, goal) => sum + calculateGoalPlan(goal).monthlyRequiredSavingCents,
-    0,
-  );
+  // Reservation uses the onboarding meta "Monthly savings plan" when present
+  // (authoritative). Individual goals are allocation targets only — do not sum
+  // their recommended monthly amounts into Safe to Spend / planned savings.
+  // Effective saved excludes current-cycle allocations so allocating reserved
+  // savings across goals does not change Safe to Spend.
+  const savingsGoalAllocationCents = useMemo(() => {
+    return computeGrossSavingsAllocationCents({
+      goals: data.savingsGoals,
+      allocatedThisCycleByGoal: cycleGoalContributions.contributionsByGoal,
+    });
+  }, [cycleGoalContributions.contributionsByGoal, data.savingsGoals]);
   const safeToSpendCents = hasIncomeForCycle
     ? computeSafeToSpendCents({
         incomeForCurrentCycleCents: effectiveSalaryCents,
@@ -2668,12 +2725,18 @@ function useFinanceDataInternal() {
     totalIncomeThisCycleCents,
     hasIncomeForCycle,
     previousCycleIncomeCents,
+    incomeEntries: cycleIncome.entries,
     selectedCycle,
     previousCycle,
     budgetCycles,
     remainingIncomeCents,
     safeToSpendCents,
     savingsGoalAllocationCents,
+    allocatedThisCycleCents: cycleGoalContributions.allocatedThisCycleCents,
+    contributionsByGoal: cycleGoalContributions.contributionsByGoal,
+    saveCycleAllocation: cycleGoalContributions.saveCycleAllocation,
+    isSavingCycleAllocation: cycleGoalContributions.isSaving,
+    reloadFinanceData,
     upcomingBills,
     upcomingUnpaidBillsCents,
     upcomingBillsBeforeNextSalary,
@@ -2687,6 +2750,8 @@ function useFinanceDataInternal() {
     remainingCents,
     hasAnyData,
     setSalary,
+    updateIncomeEntry,
+    deleteIncomeEntry,
     setCurrency,
     updateMonthlyIncome,
     getCurrentMonthIncome,

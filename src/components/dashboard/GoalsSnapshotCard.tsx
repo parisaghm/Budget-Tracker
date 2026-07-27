@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Target, Umbrella, Plane, Bike } from "lucide-react";
+import { Target, Umbrella, Plane, Bike } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { SavingsGoal } from "@/types/finance";
 import { Button } from "@/components/ui/button";
+import { formatMoney } from "@/utils/money";
 
 const GOAL_ICONS: LucideIcon[] = [Umbrella, Plane, Bike, Target];
 
@@ -16,13 +17,24 @@ const GOAL_BG = [
 export interface GoalsSnapshotCardProps {
   goals: SavingsGoal[];
   maxVisible?: number;
+  currency?: string;
+  plannedSavingsCents?: number;
+  allocatedToGoalsCents?: number;
 }
 
-export function GoalsSnapshotCard({ goals, maxVisible = 3 }: GoalsSnapshotCardProps) {
+export function GoalsSnapshotCard({
+  goals,
+  maxVisible = 3,
+  currency = "EUR",
+  plannedSavingsCents,
+  allocatedToGoalsCents,
+}: GoalsSnapshotCardProps) {
   const visibleGoals = goals.slice(0, maxVisible);
   const hasMeaningfulGoals = goals.some(
     (goal) => goal.targetCents > 0 || goal.savedCents > 0,
   );
+  const showCycleSummary =
+    plannedSavingsCents !== undefined && allocatedToGoalsCents !== undefined;
 
   return (
     <section
@@ -35,6 +47,19 @@ export function GoalsSnapshotCard({ goals, maxVisible = 3 }: GoalsSnapshotCardPr
             Goals snapshot
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">Progress on your savings goals</p>
+          {showCycleSummary ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Savings planned: {formatMoney(plannedSavingsCents, currency)} · Allocated to
+              goals: {formatMoney(allocatedToGoalsCents, currency)}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Savings plan not set.{" "}
+              <Link to="/goals" className="font-medium text-[#6E4E91] hover:text-[#4A3463]">
+                Set savings plan
+              </Link>
+            </p>
+          )}
         </div>
         <Link
           to="/goals"

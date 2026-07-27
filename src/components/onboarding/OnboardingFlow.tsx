@@ -29,10 +29,32 @@ interface OnboardingFlowProps {
   currency?: string;
   canExit?: boolean;
   onExit?: () => void;
+  /** Session-only sample dashboard — must not write to Supabase. */
+  onExploreDemo?: () => void;
   onComplete: (data: OnboardingData) => Promise<void> | void;
 }
 
 const LAST_STEP = 7;
+
+const EXAMPLE_VALUES_WARNING =
+  "These example values will be saved to your account if you continue.";
+
+function buildExampleOnboardingData(): OnboardingData {
+  return {
+    monthlyIncomeCents: 340000,
+    fixedBills: [
+      { id: crypto.randomUUID(), name: "Rent", amountCents: 120000 },
+      { id: crypto.randomUUID(), name: "Phone", amountCents: 3500 },
+      { id: crypto.randomUUID(), name: "Subscriptions", amountCents: 1500 },
+    ],
+    monthlySavingsGoalCents: 30000,
+    wantsWeeklyBudget: true,
+    preferredWeeklyBudgetCents: 35000,
+    categories: ["groceries", "eating_out", "transport", "shopping"],
+    completed: false,
+    completedAt: null,
+  };
+}
 
 function toCents(value: string): number {
   const parsed = Number(value);
@@ -53,15 +75,18 @@ export function OnboardingFlow({
   currency = "EUR",
   canExit = false,
   onExit,
+  onExploreDemo,
   onComplete,
 }: OnboardingFlowProps) {
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [examplesPrefixed, setExamplesPrefixed] = useState(false);
   const [data, setData] = useState<OnboardingData>(() => mergeOnboardingData(initialData));
 
   useEffect(() => {
     setData(mergeOnboardingData(initialData));
+    setExamplesPrefixed(false);
   }, [initialData]);
 
   const preview = useMemo(() => calcSafeToSpend(data), [data]);
@@ -72,6 +97,7 @@ export function OnboardingFlow({
   );
   const progress = (step / LAST_STEP) * 100;
   const showBudgetWarnings = step >= 3 && step < 7 && budgetWarnings.length > 0;
+  const showExampleWarning = examplesPrefixed && step >= 2;
 
   const next = () => {
     if (step === 2 && data.monthlyIncomeCents <= 0) {
@@ -80,6 +106,25 @@ export function OnboardingFlow({
     }
     setError(null);
     setStep((s) => Math.min(LAST_STEP, s + 1));
+  };
+
+  const startRealSetup = () => {
+    setData(mergeOnboardingData(DEFAULT_ONBOARDING_DATA));
+    setExamplesPrefixed(false);
+    setError(null);
+    setStep(2);
+  };
+
+  const fillExampleValues = () => {
+    setData(buildExampleOnboardingData());
+    setExamplesPrefixed(true);
+    setError(null);
+  };
+
+  const clearExampleValues = () => {
+    setData(mergeOnboardingData(DEFAULT_ONBOARDING_DATA));
+    setExamplesPrefixed(false);
+    setError(null);
   };
 
   const back = () => {
@@ -110,25 +155,6 @@ export function OnboardingFlow({
     });
   };
 
-  const runDemo = () => {
-    setData({
-      monthlyIncomeCents: 340000,
-      fixedBills: [
-        { id: crypto.randomUUID(), name: "Rent", amountCents: 120000 },
-        { id: crypto.randomUUID(), name: "Phone", amountCents: 3500 },
-        { id: crypto.randomUUID(), name: "Subscriptions", amountCents: 1500 },
-      ],
-      monthlySavingsGoalCents: 30000,
-      wantsWeeklyBudget: true,
-      preferredWeeklyBudgetCents: 35000,
-      categories: ["groceries", "eating_out", "transport", "shopping"],
-      completed: false,
-      completedAt: null,
-    });
-    setStep(7);
-    setError(null);
-  };
-
   const submit = async () => {
     setSaving(true);
     setError(null);
@@ -141,6 +167,7 @@ export function OnboardingFlow({
           wantsWeeklyBudget: data.wantsWeeklyBudget,
           preferredWeeklyBudgetCents: data.preferredWeeklyBudgetCents,
           categories: data.categories,
+          examplesPrefixed,
         });
       }
       await onComplete(data);
@@ -167,7 +194,9 @@ export function OnboardingFlow({
             {step === 1 && (
               <>
                 <CardTitle className="text-2xl">Understand your money in 60 seconds</CardTitle>
-                <CardDescription>No bank connection. No stress. Just clarity.</CardDescription>
+                <CardDescription>
+                  Explore a sample budget, or set up your real numbers. Sample data never saves to your account.
+                </CardDescription>
               </>
             )}
             {step === 2 && (
@@ -216,20 +245,38 @@ export function OnboardingFlow({
             )}
           </CardHeader>
           <CardContent className="space-y-4">
+            {showExampleWarning ? (
+              <Alert className="border-amber-500/40 bg-amber-500/10 text-foreground [&>svg]:text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{EXAMPLE_VALUES_WARNING}</AlertDescription>
+              </Alert>
+            ) : null}
+
             {step === 2 && (
-              <div className="space-y-2">
-                <Label htmlFor="monthlyIncome">Monthly income</Label>
-                <Input
-                  id="monthlyIncome"
-                  type="number"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={toMajorUnits(data.monthlyIncomeCents)}
-                  onChange={(event) =>
-                    setData((prev) => ({ ...prev, monthlyIncomeCents: toCents(event.target.value) }))
-                  }
-                />
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyIncome">Monthly income</Label>
+                  <Input
+                    id="monthlyIncome"
+                    type="number"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={toMajorUnits(data.monthlyIncomeCents)}
+                    onChange={(event) =>
+                      setData((prev) => ({ ...prev, monthlyIncomeCents: toCents(event.target.value) }))
+                    }
+                  />
+                </div>
+                {examplesPrefixed ? (
+                  <Button variant="ghost" size="sm" onClick={clearExampleValues}>
+                    Clear examples
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" onClick={fillExampleValues}>
+                    Fill with example values
+                  </Button>
+                )}
               </div>
             )}
 
@@ -388,8 +435,12 @@ export function OnboardingFlow({
               <div className="flex items-center gap-2">
                 {step === 1 ? (
                   <>
-                    <Button variant="secondary" onClick={runDemo}>Try demo</Button>
-                    <Button onClick={next}>Get started</Button>
+                    {onExploreDemo ? (
+                      <Button variant="secondary" onClick={onExploreDemo}>
+                        Explore demo
+                      </Button>
+                    ) : null}
+                    <Button onClick={startRealSetup}>Set up my real budget</Button>
                   </>
                 ) : null}
                 {step === 3 ? (
@@ -401,7 +452,7 @@ export function OnboardingFlow({
                 {step > 1 && step < 7 ? <Button onClick={next}>Continue</Button> : null}
                 {step === 7 ? (
                   <Button onClick={submit} disabled={saving}>
-                    {saving ? "Saving..." : "Go to dashboard"}
+                    {saving ? "Saving..." : "Save and go to dashboard"}
                   </Button>
                 ) : null}
               </div>

@@ -36,7 +36,7 @@ export function PublicAuthHeader() {
             onClick={enterDemo}
             className="touch-hit rounded-xl px-2 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:px-3 sm:text-sm"
           >
-            Try demo
+            Explore demo
           </button>
           <Link
             to={loginTo}

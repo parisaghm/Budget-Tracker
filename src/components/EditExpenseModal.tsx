@@ -20,7 +20,7 @@ import {
   normalizeYearMonthYm,
   toDateInputValue,
 } from '@/utils/money';
-import { getCategoryIcon } from '@/utils/categoryIcons';
+import { CategoryEmojiIcon } from '@/components/icons/CategoryEmojiIcon';
 
 function localYmd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -196,14 +196,14 @@ export function EditExpenseModal({
                     }`}
                     style={category === cat.value ? { background: 'var(--gradient-primary)' } : undefined}
                   >
-                    {(() => {
-                      const Icon = getCategoryIcon(cat.iconKey);
-                      return (
-                        <span className="inline-flex items-center justify-center rounded-lg bg-background/10">
-                          <Icon className="w-4 h-4" />
-                        </span>
-                      );
-                    })()}
+                    <CategoryEmojiIcon
+                      categoryValue={cat.value}
+                      iconKey={cat.iconKey}
+                      label={cat.label}
+                      decorative
+                      className="h-7 w-7"
+                      iconClassName="h-4 w-4"
+                    />
                     <span className="truncate">{cat.label}</span>
                   </button>
                 ))}

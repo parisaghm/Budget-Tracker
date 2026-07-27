@@ -10,7 +10,8 @@ import {
   getCurrencySymbol,
   getTodayDate,
 } from '@/utils/money';
-import { getCategoryIcon, ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
+import { ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
+import { CategoryEmojiIcon } from '@/components/icons/CategoryEmojiIcon';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
 
 type DeleteCategoryResult = { success: true } | { success: false; error: string };
@@ -351,14 +352,14 @@ export function ExpenseForm({
                   }`}
                   style={category === cat.value ? { background: 'var(--gradient-primary)' } : undefined}
                 >
-                  {(() => {
-                    const Icon = getCategoryIcon(cat.iconKey);
-                    return (
-                      <span className="inline-flex items-center justify-center rounded-lg bg-background/10">
-                        <Icon className="w-4 h-4" />
-                      </span>
-                    );
-                  })()}
+                  <CategoryEmojiIcon
+                    categoryValue={cat.value}
+                    iconKey={cat.iconKey}
+                    label={cat.label}
+                    decorative
+                    className="h-7 w-7"
+                    iconClassName="h-4 w-4"
+                  />
                   <span className="truncate">{cat.label}</span>
                 </button>
                 {cat.isCustom && onDeleteCategory && (
@@ -406,7 +407,7 @@ export function ExpenseForm({
                 </div>
                 {/* Simple icon picker grid */}
                 <div className="flex flex-wrap gap-1">
-                  {Object.entries(ICON_MAP).map(([key, Icon]) => {
+                  {Object.entries(ICON_MAP).map(([key, src]) => {
                     const inferredKey = inferIconKeyFromLabel(newCategoryLabel || '');
                     const isActive = (selectedIconKey || inferredKey) === key;
                     return (
@@ -416,11 +417,12 @@ export function ExpenseForm({
                         onClick={() => setSelectedIconKey(key)}
                         className={`w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${
                           isActive
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border bg-secondary/60 text-muted-foreground hover:bg-secondary'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border bg-secondary/60 hover:bg-secondary'
                         }`}
+                        aria-label={key}
                       >
-                        <Icon className="w-4 h-4" />
+                        <img src={src} alt="" width={18} height={18} className="h-[18px] w-[18px] object-contain" draggable={false} />
                       </button>
                     );
                   })}

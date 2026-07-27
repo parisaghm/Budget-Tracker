@@ -19,6 +19,11 @@ export function billsQueryKey(userId: string | undefined, cycleId: string | unde
   return ["bills", userId ?? null, cycleId ?? null] as const;
 }
 
+/** Mirrors cycleSavingsSummaryQueryKey in useCycleGoalContributions (avoid circular import). */
+function cycleSavingsSummaryKey(userId: string | undefined, cycleId: string | undefined) {
+  return ["cycle-savings-summary", userId ?? null, cycleId ?? null] as const;
+}
+
 async function fetchIncomeForCycle(userId: string, cycleId: string): Promise<IncomeEntry[]> {
   const { data, error } = await supabase
     .from("income_entries")
@@ -47,6 +52,7 @@ export function useCycleIncome(userId: string | undefined, cycleId: string | und
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey(userId, cycleId) }),
       queryClient.invalidateQueries({ queryKey: expensesQueryKey(userId, cycleId) }),
       queryClient.invalidateQueries({ queryKey: billsQueryKey(userId, cycleId) }),
+      queryClient.invalidateQueries({ queryKey: cycleSavingsSummaryKey(userId, cycleId) }),
     ]);
   };
 
@@ -71,6 +77,34 @@ export function useCycleIncome(userId: string | undefined, cycleId: string | und
           note: input.note ?? null,
           date_is_estimated: false,
         })
+        .select("*")
+        .single();
+
+      if (error) throw new Error(error.message);
+      return mapIncomeEntryRow(data);
+    },
+    onSuccess: () => {
+      void invalidateCycleQueries();
+    },
+  });
+
+  const updateIncome = useMutation({
+    mutationFn: async (input: {
+      entryId: string;
+      amountCents: number;
+      note?: string | null;
+    }) => {
+      if (!userId) throw new Error("Missing user");
+      if (input.amountCents <= 0) throw new Error("Amount must be positive");
+
+      const { data, error } = await supabase
+        .from("income_entries")
+        .update({
+          amount_cents: input.amountCents,
+          note: input.note ?? null,
+        })
+        .eq("id", input.entryId)
+        .eq("user_id", userId)
         .select("*")
         .single();
 
@@ -110,6 +144,7 @@ export function useCycleIncome(userId: string | undefined, cycleId: string | und
     error: query.error,
     refetch: query.refetch,
     addIncome,
+    updateIncome,
     deleteIncome,
     invalidateCycleQueries,
   };

@@ -10,7 +10,7 @@ import type { OnboardingData } from "@/types/onboarding";
 
 export default function OnboardingPage() {
   const { user, loading } = useAuth();
-  const { isDemoMode } = useDemo();
+  const { isDemoMode, enterDemo } = useDemo();
   const navigate = useNavigate();
   const location = useLocation();
   const { onboardingData, isReady, complete } = useOnboardingProfile();
@@ -82,6 +82,7 @@ export default function OnboardingPage() {
     <OnboardingFlow
       initialData={onboardingData}
       currency={budget?.currency ?? "EUR"}
+      onExploreDemo={enterDemo}
       onComplete={handleComplete}
     />
   );
