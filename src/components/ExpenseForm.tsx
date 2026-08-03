@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, Receipt, Star, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Category, CategoryDef, Expense } from '@/types/finance';
+import type { BudgetCycle } from '@/types/budgetCycle';
+import { defaultExpenseDateForBudgetCycle } from '@/utils/budgetCycles';
 import {
   centsToEuros,
-  defaultExpenseDateForBudgetMonth,
   eurosToCents,
   formatMoney,
   getCurrencySymbol,
-  getTodayDate,
 } from '@/utils/money';
 import { ICON_MAP, inferIconKeyFromLabel } from '@/utils/categoryIcons';
 import { CategoryEmojiIcon } from '@/components/icons/CategoryEmojiIcon';
@@ -20,6 +20,8 @@ interface ExpenseFormProps {
   currency?: string;
   /** YYYY-MM of the month being viewed — new expenses default to a day in this month */
   budgetMonth?: string;
+  /** Selected income cycle — stamps today when today falls inside the cycle. */
+  selectedCycle?: Pick<BudgetCycle, 'startDate' | 'endDate'> | null;
   onAdd: (expense: { amountCents: number; category: Category; date: string; note: string }) => void | Promise<void>;
   categories: CategoryDef[];
   expenses: Expense[];
@@ -28,6 +30,8 @@ interface ExpenseFormProps {
     iconKey?: string,
   ) => void | Promise<{ success: true } | { success: false; error: string }>;
   onDeleteCategory?: (categoryValue: string) => DeleteCategoryResult;
+  /** When true, omit card chrome (e.g. embedded in a dialog). */
+  embedded?: boolean;
 }
 
 interface FavoriteExpense {
@@ -58,17 +62,17 @@ function readFavorites(): FavoriteExpense[] {
 export function ExpenseForm({
   currency = 'EUR',
   budgetMonth,
+  selectedCycle = null,
   onAdd,
   categories,
   expenses,
   onAddCategory,
   onDeleteCategory,
+  embedded = false,
 }: ExpenseFormProps) {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>(categories[0]?.value || 'groceries');
-  const [date, setDate] = useState(() =>
-    budgetMonth?.trim() ? defaultExpenseDateForBudgetMonth(budgetMonth) : getTodayDate(),
-  );
+  const [date, setDate] = useState(() => defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth));
   const [note, setNote] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -86,10 +90,14 @@ export function ExpenseForm({
   }, [favorites]);
 
   useEffect(() => {
-    const ym = budgetMonth?.trim();
-    if (!ym) return;
-    setDate(defaultExpenseDateForBudgetMonth(ym));
-  }, [budgetMonth]);
+    setDate(defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth));
+  }, [budgetMonth, selectedCycle]);
+
+  useEffect(() => {
+    if (!isExpanded) return;
+    // Re-stamp local today when advanced options open so the field is never stale.
+    setDate(defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth));
+  }, [isExpanded, budgetMonth, selectedCycle]);
 
   const sortedExpenses = useMemo(
     () => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
@@ -211,7 +219,7 @@ export function ExpenseForm({
         }
         setAmount('');
         setNote('');
-        setDate(budgetMonth?.trim() ? defaultExpenseDateForBudgetMonth(budgetMonth) : getTodayDate());
+        setDate(defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth));
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Could not save expense';
         toast.error('Expense not saved', { description: message });
@@ -273,8 +281,13 @@ export function ExpenseForm({
     <>
     <form
       onSubmit={handleSubmit}
-      className="card-elevated animate-slide-up rounded-3xl p-4 sm:rounded-2xl sm:p-6"
+      className={
+        embedded
+          ? 'animate-slide-up p-4 sm:p-5'
+          : 'card-elevated animate-slide-up rounded-3xl p-4 sm:rounded-2xl sm:p-6'
+      }
     >
+      {embedded ? null : (
       <div className="mb-5 flex items-center gap-3 sm:mb-6">
         <div
           className="flex h-12 w-12 items-center justify-center rounded-2xl sm:h-11 sm:w-11 sm:rounded-xl"
@@ -287,6 +300,7 @@ export function ExpenseForm({
           <p className="text-sm text-muted-foreground sm:text-xs">Full details when you need them</p>
         </div>
       </div>
+      )}
 
       <div className="space-y-5">
         {topFavoriteExpenses.length > 0 && (

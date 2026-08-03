@@ -24,7 +24,7 @@ import {
   SavingsGoal,
 } from "@/types/finance";
 import { DEFAULT_CATEGORY_ICON_KEY, inferIconKeyFromLabel } from "@/utils/categoryIcons";
-import { getCurrentMonth, getPreviousMonth, normalizeCurrencyCode, normalizeYearMonthYm } from "@/utils/money";
+import { getCurrentMonth, getPreviousMonth, normalizeCurrencyCode, normalizeYearMonthYm, toDateInputValue } from "@/utils/money";
 import { calculateGoalPlan } from "@/utils/goalPlan";
 import { useCycleGoalContributions } from "@/hooks/useCycleGoalContributions";
 import { computeGrossSavingsAllocationCents } from "@/utils/savingsAllocation";
@@ -78,7 +78,8 @@ import {
   isDateInBudgetCycle,
 } from "@/utils/budgetCycles";
 import { ensureCyclesUpToToday } from "@/utils/budgetCycleService";
-import { useCycleIncome } from "@/hooks/useCycleIncome";
+import { useCycleIncome, expensesQueryKey } from "@/hooks/useCycleIncome";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface StoredData {
   budgets: Record<string, BudgetMonth>;
@@ -419,6 +420,7 @@ export interface FinanceDiagnosticsSnapshot {
 function useFinanceDataInternal() {
   const { user } = useAuth();
   const { isDemoMode } = useDemo();
+  const queryClient = useQueryClient();
   const financeUserId = user?.id ?? (isDemoMode ? "demo" : "");
   const monthManuallySelectedRef = useRef(false);
   const [currentMonth, setCurrentMonthState] = useState(() =>
@@ -660,7 +662,8 @@ function useFinanceDataInternal() {
           month: row.month,
           amountCents: row.amount_cents,
           category: row.category,
-          date: row.date,
+          // Postgres `date` → YYYY-MM-DD; never keep a timestamptz that could UTC-shift.
+          date: toDateInputValue(row.date) || String(row.date).slice(0, 10),
           note: row.note ?? "",
           createdAt: row.created_at,
         })));
@@ -1224,6 +1227,9 @@ function useFinanceDataInternal() {
       const budgetId = budget?.id ?? crypto.randomUUID();
       const newExpenseId = crypto.randomUUID();
       const createdAt = new Date().toISOString();
+      // Store local calendar YYYY-MM-DD only — never an ISO timestamptz.
+      const transactionDate =
+        toDateInputValue(expense.date) || expense.date.slice(0, 10);
 
       let newExpense: Expense | null = null;
       let resolvedBudgetId = budgetId;
@@ -1267,7 +1273,7 @@ function useFinanceDataInternal() {
           month: currentMonth,
           amount_cents: expense.amountCents,
           category: expense.category,
-          date: expense.date,
+          date: transactionDate,
           note: expense.note?.trim() ? expense.note : null,
         });
 
@@ -1277,6 +1283,7 @@ function useFinanceDataInternal() {
 
         newExpense = {
           ...expense,
+          date: transactionDate,
           id: newExpenseId,
           budgetMonthId: resolvedBudgetId,
           month: currentMonth,
@@ -1287,7 +1294,7 @@ function useFinanceDataInternal() {
           id: `offline-${newExpenseId}`,
           amountCents: expense.amountCents,
           category: expense.category,
-          date: expense.date,
+          date: transactionDate,
           note: expense.note,
           month: currentMonth,
           createdAt,
@@ -1319,9 +1326,13 @@ function useFinanceDataInternal() {
         expenses: [...prev.expenses, newExpense as Expense],
       }));
 
+      void queryClient.invalidateQueries({
+        queryKey: expensesQueryKey(user.id, selectedCycle?.id),
+      });
+
       return newExpense;
     },
-    [currentMonth, data.budgets, isDemoMode, pendingExpenses, user],
+    [currentMonth, data.budgets, isDemoMode, pendingExpenses, queryClient, selectedCycle?.id, user],
   );
 
   const updateExpense = useCallback(
@@ -1339,8 +1350,9 @@ function useFinanceDataInternal() {
       if (updates.note !== undefined) patch.note = updates.note?.trim() ? updates.note : null;
 
       if (updates.date !== undefined) {
-        const newMonth = budgetMonthKeyForDate(updates.date, incomeCycle);
-        patch.date = updates.date;
+        const normalizedDate = toDateInputValue(updates.date) || updates.date.slice(0, 10);
+        const newMonth = budgetMonthKeyForDate(normalizedDate, incomeCycle);
+        patch.date = normalizedDate;
 
         const { data: existingRow, error: existingError } = await supabase
           .from("expenses")
@@ -1446,7 +1458,7 @@ function useFinanceDataInternal() {
               ...exp,
               amountCents: row.amount_cents,
               category: nextCategory,
-              date: row.date,
+              date: toDateInputValue(row.date) || String(row.date).slice(0, 10),
               month: rowMonthKey || exp.month,
               note: row.note ?? "",
               budgetMonthId: row.budget_month_id,
@@ -2766,6 +2778,8 @@ function useFinanceDataInternal() {
     removeCustomCategory,
     deleteCategory,
     categoryLimitsForMonth,
+    /** All month-keyed category limits (for historical cycle plan checks). */
+    categoryLimitsByMonth: data.categoryLimits,
     setCategoryLimit,
     savingsGoals: data.savingsGoals,
     addSavingsGoal,

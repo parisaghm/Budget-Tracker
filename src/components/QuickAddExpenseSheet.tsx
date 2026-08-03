@@ -1,8 +1,10 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import type { BudgetCycle } from "@/types/budgetCycle";
 import type { CategoryDef } from "@/types/finance";
-import { defaultExpenseDateForBudgetMonth, eurosToCents, getCurrencySymbol, getTodayDate } from "@/utils/money";
+import { defaultExpenseDateForBudgetCycle } from "@/utils/budgetCycles";
+import { eurosToCents, getCurrencySymbol } from "@/utils/money";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -19,15 +21,33 @@ interface QuickAddExpenseSheetProps {
   categories: CategoryDef[];
   /** YYYY-MM for the budget month new expenses are posted to */
   budgetMonth?: string;
+  /** Selected income cycle — stamps today when today falls inside the cycle. */
+  selectedCycle?: Pick<BudgetCycle, "startDate" | "endDate"> | null;
   onAdd: (expense: { amountCents: number; category: string; date: string; note: string }) => Promise<void> | void;
+  /** Optional controlled open state (e.g. toolbar Add on mobile). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function QuickAddExpenseSheet({ currency = "EUR", categories, budgetMonth, onAdd }: QuickAddExpenseSheetProps) {
-  const [open, setOpen] = useState(false);
+export function QuickAddExpenseSheet({
+  currency = "EUR",
+  categories,
+  budgetMonth,
+  selectedCycle = null,
+  onAdd,
+  open: controlledOpen,
+  onOpenChange,
+}: QuickAddExpenseSheetProps) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(categories[0]?.value ?? "other");
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [draftDate, setDraftDate] = useState(() =>
+    defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth),
+  );
 
   const canSubmit = useMemo(() => Number(amount) > 0 && !isSaving, [amount, isSaving]);
 
@@ -38,6 +58,12 @@ export function QuickAddExpenseSheet({ currency = "EUR", categories, budgetMonth
     }
   }, [categories, category]);
 
+  useEffect(() => {
+    if (!open) return;
+    // Fresh local today whenever the sheet opens — never a prior expense date.
+    setDraftDate(defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth));
+  }, [open, selectedCycle, budgetMonth]);
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const parsed = Number.parseFloat(amount);
@@ -46,7 +72,7 @@ export function QuickAddExpenseSheet({ currency = "EUR", categories, budgetMonth
     setIsSaving(true);
     try {
       const expenseDate =
-        budgetMonth?.trim() ? defaultExpenseDateForBudgetMonth(budgetMonth) : getTodayDate();
+        draftDate || defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth);
       await Promise.resolve(
         onAdd({
           amountCents: eurosToCents(parsed),
@@ -58,6 +84,7 @@ export function QuickAddExpenseSheet({ currency = "EUR", categories, budgetMonth
       setOpen(false);
       setAmount("");
       setNote("");
+      setDraftDate(defaultExpenseDateForBudgetCycle(selectedCycle, budgetMonth));
       toast.success("Expense added");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Please try again.";

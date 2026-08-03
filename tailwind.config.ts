@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       maxWidth: {
-        "8xl": "90rem",
+        "8xl": "1350px",
       },
       fontFamily: {
         sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],

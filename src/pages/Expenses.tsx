@@ -1,89 +1,165 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { AppShellHeader } from "@/components/AppShellHeader";
+import { AppPageContainer } from "@/components/AppPageContainer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
-import { ExpenseForm } from "@/components/ExpenseForm";
-import { ExpenseList } from "@/components/ExpenseList";
-import { CategoryChart } from "@/components/CategoryChart";
-import type { Category } from "@/types/finance";
+import { ExpensesCycleSummaryCard } from "@/components/expenses/ExpensesCycleSummaryCard";
+import { ExpensesListCard } from "@/components/expenses/ExpensesListCard";
+import {
+  buildExpensesPageModel,
+  type ExpensesCategoryFilter,
+} from "@/utils/expensesPageModel";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 export default function ExpensesPage() {
-  const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
   const {
     currentMonth,
     setCurrentMonth,
     budget,
     expenses,
+    totalSpentCents,
     addExpense,
     updateExpense,
     deleteExpense,
     allCategories,
-    addCustomCategory,
-    deleteCategory,
-    categoryLimitsForMonth,
-    setCategoryLimit,
     incomeCycle,
+    selectedCycle,
+    categoryLimitsForMonth,
   } = useSupabaseFinanceData();
 
+  const [selectedCategory, setSelectedCategory] = useState<ExpensesCategoryFilter>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showBillGeneratedOnly, setShowBillGeneratedOnly] = useState(false);
+  const [showUncategorisedOnly, setShowUncategorisedOnly] = useState(false);
+
   const activeCurrency = budget?.currency ?? "EUR";
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset filters when the selected cycle changes so stale filters never linger.
+  useEffect(() => {
+    setSelectedCategory("all");
+    setSearchInput("");
+    setDebouncedSearch("");
+    setShowBillGeneratedOnly(false);
+    setShowUncategorisedOnly(false);
+  }, [selectedCycle?.id, currentMonth]);
+
+  const model = useMemo(
+    () =>
+      buildExpensesPageModel({
+        expenses,
+        categories: allCategories,
+        categoryLimits: categoryLimitsForMonth,
+        selectedCategory,
+        searchQuery: debouncedSearch,
+        showBillGeneratedOnly,
+        showUncategorisedOnly,
+        homeSpentCents: totalSpentCents,
+      }),
+    [
+      expenses,
+      allCategories,
+      categoryLimitsForMonth,
+      selectedCategory,
+      debouncedSearch,
+      showBillGeneratedOnly,
+      showUncategorisedOnly,
+      totalSpentCents,
+    ],
+  );
+
+  const clearFilters = () => {
+    setSelectedCategory("all");
+    setShowBillGeneratedOnly(false);
+    setShowUncategorisedOnly(false);
+  };
 
   return (
     <>
       <Helmet>
         <title>Expenses · Sova Budget</title>
-        <meta name="description" content="Log spending and see category breakdowns." />
+        <meta
+          name="description"
+          content="Review cycle spending by category and manage your expenses."
+        />
       </Helmet>
       <div className="flex min-h-dvh flex-col bg-background">
         <AppShellHeader
           title="Expenses"
-          subtitle="Log spending when it happens"
+          subtitle="Where your money went this cycle"
           currency={activeCurrency}
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
           incomeCycle={incomeCycle}
-          contentMaxWidth="max-w-6xl"
+          selectedCycle={selectedCycle}
         />
-        <main className="mx-auto w-full max-w-6xl flex-1 space-y-5 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-4 lg:px-8">
-          <p className="text-sm text-muted-foreground md:hidden">
-            Use the + button to add an expense quickly.
-          </p>
-          <div className="hidden md:block">
-            <ExpenseForm
+        <AppPageContainer
+          as="main"
+          className="flex-1 pb-mobile-nav pr-mobile-fab pt-5 sm:pt-8 md:pb-10"
+        >
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,34%)_minmax(0,1fr)] lg:items-start lg:gap-6">
+            <ExpensesListCard
+              className="order-1 lg:order-2"
+              filteredCount={model.filteredCount}
+              filteredTotalCents={model.filteredTotalCents}
               currency={activeCurrency}
-              budgetMonth={currentMonth}
-              onAdd={addExpense}
+              searchValue={searchInput}
+              onSearchChange={setSearchInput}
+              filtersActive={model.hasActiveFilters}
+              hasSearch={model.hasSearch}
+              chips={model.visibleFilterChips}
+              allCategories={model.allFilterCategories}
+              selectedCategory={selectedCategory}
+              showBillGeneratedOnly={showBillGeneratedOnly}
+              showUncategorisedOnly={showUncategorisedOnly}
+              onSelectCategory={setSelectedCategory}
+              onShowBillGeneratedOnlyChange={setShowBillGeneratedOnly}
+              onShowUncategorisedOnlyChange={setShowUncategorisedOnly}
+              onClearFilters={clearFilters}
+              onClearSearch={() => setSearchInput("")}
+              dateGroups={model.dateGroups}
+              cycleExpenseCount={expenses.length}
               categories={allCategories}
-              expenses={expenses}
-              onAddCategory={addCustomCategory}
-              onDeleteCategory={deleteCategory}
+              monthScope={currentMonth}
+              selectedCycle={selectedCycle}
+              onAddExpense={addExpense}
+              onUpdate={updateExpense}
+              onDelete={deleteExpense}
             />
+
+            <div className="order-2 lg:order-1 lg:sticky lg:top-24">
+              <ExpensesCycleSummaryCard
+                breakdown={model.categoryBreakdown}
+                visibleRows={model.visibleCategoryRows}
+                hasMoreCategories={model.hasMoreCategories}
+                totalCycleSpendingCents={model.totalCycleSpendingCents}
+                plannedExpenseTotalCents={model.plannedExpenseTotalCents}
+                hasPlannedExpenses={model.hasPlannedExpenses}
+                selectedCategory={selectedCategory}
+                selectedBreakdown={model.selectedBreakdown}
+                attention={model.attention}
+                currency={activeCurrency}
+                onSelectCategory={setSelectedCategory}
+              />
+            </div>
           </div>
-          <CategoryChart
-            expenses={expenses}
-            categories={allCategories}
-            currency={activeCurrency}
-            selectedCategory={categoryFilter === "all" ? null : categoryFilter}
-            onCategorySelect={(cat) => setCategoryFilter(cat ?? "all")}
-            categoryLimits={categoryLimitsForMonth}
-            onSetCategoryLimit={setCategoryLimit}
-          />
-          <ExpenseList
-            expenses={expenses}
-            categories={allCategories}
-            currency={activeCurrency}
-            monthScope={currentMonth}
-            categoryFilter={categoryFilter}
-            onCategoryFilterChange={setCategoryFilter}
-            onUpdate={updateExpense}
-            onDelete={deleteExpense}
-          />
-        </main>
+        </AppPageContainer>
+
         <QuickAddExpenseSheet
           currency={activeCurrency}
           categories={allCategories}
           budgetMonth={currentMonth}
+          selectedCycle={selectedCycle}
           onAdd={addExpense}
         />
         <MobileBottomNav />

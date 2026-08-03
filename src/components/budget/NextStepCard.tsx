@@ -89,7 +89,7 @@ const actionLabels: Record<Exclude<NextStepKind, "handle_rollover" | "pace_suppo
   setup_budget: "Add monthly income",
   handle_overspend: "See calm options",
   review_bills: "View upcoming bills",
-  weekly_review: "Open weekly review",
+  weekly_review: "Open cycle review",
   on_track: "Open budget",
 };
 
@@ -97,7 +97,7 @@ const actionHints: Record<Exclude<NextStepKind, "handle_rollover" | "pace_suppor
   setup_budget: "Shows what's left in this cycle",
   handle_overspend: "No judgment, just a path forward",
   review_bills: "Plan around what's due",
-  weekly_review: "Two minutes, gentle",
+  weekly_review: "Progress and reflection",
   on_track: "Continue your plan",
 };
 

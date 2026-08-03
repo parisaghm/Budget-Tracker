@@ -2,7 +2,8 @@ import { useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { useDemo } from "@/context/DemoContext";
-import { AppShellHeader, appShellMaxWidthClass } from "@/components/AppShellHeader";
+import { AppShellHeader } from "@/components/AppShellHeader";
+import { AppPageContainer } from "@/components/AppPageContainer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
 import { SalarySetup, type SalarySetupHandle } from "@/components/SalarySetup";
@@ -127,12 +128,12 @@ export default function BudgetPage() {
           incomeCycle={incomeCycle}
           selectedCycle={selectedCycle}
           currency={activeCurrency}
-          contentMaxWidth={appShellMaxWidthClass}
           subtitle="PLAN & ALLOCATE"
           mobileLayout="budget"
         />
-        <main
-          className={`container ${appShellMaxWidthClass} flex-1 space-y-3 px-5 pb-mobile-nav pr-mobile-fab pt-4 sm:space-y-4 sm:px-7 sm:pt-5 md:pb-10 md:pr-4 lg:px-9 lg:pt-6`}
+        <AppPageContainer
+          as="main"
+          className="flex-1 space-y-3 pb-mobile-nav pr-mobile-fab pt-4 sm:space-y-4 sm:pt-5 md:pb-10 lg:pt-6"
         >
           <div className="budget-page-grid">
             <div className="budget-page-main">
@@ -325,11 +326,12 @@ export default function BudgetPage() {
               />
             </aside>
           </div>
-        </main>
+        </AppPageContainer>
         <QuickAddExpenseSheet
           currency={activeCurrency}
           categories={allCategories}
           budgetMonth={currentMonth}
+          selectedCycle={selectedCycle}
           onAdd={addExpense}
         />
         <MobileBottomNav />

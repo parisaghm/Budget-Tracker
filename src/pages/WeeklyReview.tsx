@@ -42,6 +42,7 @@ export default function WeeklyReviewPage() {
     allCategories,
     addExpense,
     currentMonth,
+    selectedCycle,
   } = useSupabaseFinanceData();
   const { onboardingData, isReady: onboardingReady } = useOnboardingProfile();
 
@@ -248,6 +249,7 @@ export default function WeeklyReviewPage() {
         currency={activeCurrency}
         categories={allCategories}
         budgetMonth={currentMonth}
+        selectedCycle={selectedCycle}
         onAdd={addExpense}
       />
       <MobileBottomNav />

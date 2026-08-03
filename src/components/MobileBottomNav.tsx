@@ -7,7 +7,7 @@ const navItems = [
   { to: "/dashboard", label: "Home", icon: Home },
   { to: "/budget", label: "Budget", icon: PiggyBank },
   { to: "/bills", label: "Bills", icon: CreditCard },
-  { to: "/weekly-review", label: "Review", icon: BarChart3 },
+  { to: "/cycle", label: "Cycles", icon: BarChart3 },
   { to: "/expenses", label: "Expenses", icon: ReceiptText },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;

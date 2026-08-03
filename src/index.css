@@ -134,6 +134,28 @@
       radial-gradient(1000px 640px at 6% -8%, hsl(40 55% 88% / 0.28), transparent 58%),
       radial-gradient(900px 560px at 94% 12%, hsl(270 38% 86% / 0.2), transparent 55%),
       radial-gradient(800px 500px at 50% 100%, hsl(38 45% 90% / 0.125), transparent 50%);
+
+    /* Shared authenticated page shell width + horizontal padding */
+    --app-content-max-width: 1350px;
+    --app-content-pad-x: 1rem; /* 16px mobile */
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --app-content-pad-x: 1.25rem; /* 20px tablet */
+    }
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --app-content-pad-x: 1.5rem; /* 24px desktop */
+    }
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --app-content-pad-x: 2rem; /* 32px large desktop */
+    }
   }
 
   .dark {
@@ -192,6 +214,15 @@
 
   .dark .auth-shell-page {
     background-image: radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px);
+  }
+
+  /* One shared outer width for AppShellHeader + page body on all routes */
+  .app-page-container {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--app-content-max-width);
+    margin-inline: auto;
+    padding-inline: var(--app-content-pad-x);
   }
 }
 

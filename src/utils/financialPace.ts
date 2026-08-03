@@ -310,7 +310,7 @@ export function buildFinancialPace(input: FinancialPaceInput): FinancialPace {
         id: "reduce_daily_pace",
         label: "Reduce daily pace",
         hint: `Aim closer to ${formatMoney(gentleDailyCents, currency)} per day until your income date.`,
-        to: "/weekly-review",
+        to: "/cycle",
       },
     );
   } else if (emotionalTone === "supportive") {
@@ -326,7 +326,7 @@ export function buildFinancialPace(input: FinancialPaceInput): FinancialPace {
       id: "reduce_daily_pace",
       label: "Reduce daily pace",
       hint: `Aim closer to ${formatMoney(gentleDailyCents, currency)} per day until your income date.`,
-      to: "/weekly-review",
+      to: "/cycle",
     });
     if (upcomingBills.length > 0) {
       suggestedActions.push({

@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/context/AuthContext";
@@ -25,7 +25,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const OnboardingPage = lazy(() => import("./pages/Onboarding"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const BillsPage = lazy(() => import("./pages/Bills"));
-const WeeklyReviewPage = lazy(() => import("./pages/WeeklyReview"));
+const CyclePage = lazy(() => import("./pages/Cycle"));
 const BudgetPage = lazy(() => import("./pages/Budget"));
 const ExpensesPage = lazy(() => import("./pages/Expenses"));
 const GoalsPage = lazy(() => import("./pages/Goals"));
@@ -127,14 +127,18 @@ const App = () => (
                     }
                   />
                   <Route
-                    path="/weekly-review"
+                    path="/cycle"
                     element={
                       <ProtectedRoute>
                         <RequireOnboarding>
-                          <WeeklyReviewPage />
+                          <CyclePage />
                         </RequireOnboarding>
                       </ProtectedRoute>
                     }
+                  />
+                  <Route
+                    path="/weekly-review"
+                    element={<Navigate to="/cycle" replace />}
                   />
                   <Route
                     path="/onboarding"

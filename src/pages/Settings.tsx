@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { AppPageContainer } from "@/components/AppPageContainer";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { CurrencySelector } from "@/components/CurrencySelector";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
@@ -43,7 +44,8 @@ import {
 export default function SettingsPage() {
   const { user } = useAuth();
   const { isDemoMode, exitDemo } = useDemo();
-  const { budget, allCategories, addExpense, currentMonth, setCurrency } = useSupabaseFinanceData();
+  const { budget, allCategories, addExpense, currentMonth, setCurrency, selectedCycle } =
+    useSupabaseFinanceData();
   const { incomeCycle, save: saveIncomeCycle, isConfigured } = useIncomeCycle();
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
   const { adjustments, refresh: refreshBudgetPlan } = useBudgetAdjustments(userId || undefined, currentMonth);
@@ -124,7 +126,8 @@ export default function SettingsPage() {
         <title>Settings - Sova Budget</title>
       </Helmet>
       <div className="flex min-h-dvh flex-col bg-background md:pb-24">
-        <div className="mx-auto w-full max-w-2xl flex-1 space-y-4 px-4 pr-mobile-fab pt-5 sm:pt-6 md:pr-4">
+        <AppPageContainer className="flex-1 space-y-4 pb-mobile-nav pr-mobile-fab pt-5 sm:pt-6">
+          <div className="mx-auto w-full max-w-2xl space-y-4">
           <Link
             to="/dashboard"
             className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground touch-manipulation hover:bg-secondary/80 sm:w-auto sm:py-2 sm:text-xs"
@@ -247,11 +250,13 @@ export default function SettingsPage() {
               {isDemoMode ? "Leave demo" : "Sign out"}
             </Button>
           </div>
-        </div>
+          </div>
+        </AppPageContainer>
         <QuickAddExpenseSheet
           currency={budget?.currency ?? "EUR"}
           categories={allCategories}
           budgetMonth={currentMonth}
+          selectedCycle={selectedCycle}
           onAdd={addExpense}
         />
         <MobileBottomNav />

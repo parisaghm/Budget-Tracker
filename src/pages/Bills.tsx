@@ -9,7 +9,8 @@ import { useBudgetAdjustments } from "@/hooks/useBudgetAdjustments";
 import { useBillPaymentDecision } from "@/hooks/useBillPaymentDecision";
 import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { BillPaymentModals } from "@/components/BillPaymentModals";
-import { AppShellHeader, appShellMaxWidthClass } from "@/components/AppShellHeader";
+import { AppShellHeader } from "@/components/AppShellHeader";
+import { AppPageContainer } from "@/components/AppPageContainer";
 import { formatBillDueDateLabel } from "@/utils/recurringBills";
 import { buildBillsPageModel } from "@/utils/billsPageModel";
 import { getPausedGoalsAllocationCents, getGoalReallocationBoostCents } from "@/utils/paceSupport";
@@ -212,12 +213,12 @@ export default function BillsPage() {
           incomeCycle={incomeCycle}
           selectedCycle={selectedCycle}
           currency={activeCurrency}
-          contentMaxWidth={appShellMaxWidthClass}
           subtitle="BILLS & PAYMENTS"
         />
 
-        <main
-          className={`container ${appShellMaxWidthClass} flex-1 space-y-4 px-5 pb-mobile-nav pr-mobile-fab pt-4 sm:px-7 sm:pt-5 md:pb-10 md:pr-4 lg:px-9 lg:pt-6`}
+        <AppPageContainer
+          as="main"
+          className="flex-1 space-y-4 pb-mobile-nav pr-mobile-fab pt-4 sm:pt-5 md:pb-10 lg:pt-6"
         >
           <div className="bills-page-grid">
             <div className="bills-page-main">
@@ -304,13 +305,14 @@ export default function BillsPage() {
               <RecentlyPaidCard items={model.recentlyPaidBills} currency={activeCurrency} />
             </div>
           </div>
-        </main>
+        </AppPageContainer>
       </div>
 
       <QuickAddExpenseSheet
         currency={activeCurrency}
         categories={allCategories}
         budgetMonth={currentMonth}
+        selectedCycle={selectedCycle}
         onAdd={addExpense}
       />
       <MobileBottomNav />

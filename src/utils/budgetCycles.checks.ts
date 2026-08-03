@@ -1,6 +1,10 @@
 import { parseISO } from "date-fns";
 import type { IncomeCycle } from "@/types/incomeCycle";
-import { computeCycleEndIso, isDateInCycleRange } from "@/utils/budgetCycles";
+import {
+  computeCycleEndIso,
+  defaultExpenseDateForBudgetCycle,
+  isDateInCycleRange,
+} from "@/utils/budgetCycles";
 
 /** Dev/acceptance checks for half-open cycles and schedule-change transitions. */
 export function runBudgetCycleTransitionCheck(): {
@@ -9,6 +13,23 @@ export function runBudgetCycleTransitionCheck(): {
 } {
   const details: string[] = [];
   let pass = true;
+
+  // Cross-month cycle: today in August must still stamp today, not Jul 1.
+  const crossMonth = { startDate: "2026-07-27", endDate: "2026-08-27" };
+  const todayInCycle = defaultExpenseDateForBudgetCycle(crossMonth, "2026-07", "2026-08-03");
+  if (todayInCycle !== "2026-08-03") {
+    pass = false;
+    details.push(`expected today in cycle → 2026-08-03, got ${todayInCycle}`);
+  } else {
+    details.push("default expense date uses today across month boundary");
+  }
+  const pastCycleDate = defaultExpenseDateForBudgetCycle(crossMonth, "2026-07", "2026-09-01");
+  if (pastCycleDate !== "2026-08-26") {
+    pass = false;
+    details.push(`expected last day of past cycle → 2026-08-26, got ${pastCycleDate}`);
+  } else {
+    details.push("past cycle defaults to last inclusive day");
+  }
 
   const monthly15: IncomeCycle = { preset: "monthly_15" };
   const monthly1: IncomeCycle = { preset: "monthly_1" };

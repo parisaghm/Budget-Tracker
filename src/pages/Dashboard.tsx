@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import { Helmet } from "react-helmet-async";
 import { useNavigate } from "react-router-dom";
@@ -7,6 +7,7 @@ import { useSupabaseFinanceData } from "@/hooks/useSupabaseFinanceData";
 import { useAuth } from "@/context/AuthContext";
 import { useDemo } from "@/context/DemoContext";
 import { useBudgetAdjustments } from "@/hooks/useBudgetAdjustments";
+import { useClosedCyclesHistory } from "@/hooks/useClosedCyclesHistory";
 import { hasSupabaseEnv, supabaseEnvError } from "@/lib/supabase/client";
 import { MonthPlanCard } from "@/components/budget/MonthPlanCard";
 import { AdjustSavingsSheet } from "@/components/budget/AdjustSavingsSheet";
@@ -19,7 +20,14 @@ import { GoalsSnapshotCard } from "@/components/dashboard/GoalsSnapshotCard";
 import { DashboardInsightsCard } from "@/components/dashboard/DashboardInsightsCard";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
-import { AppShellHeader, appShellMaxWidthClass } from "@/components/AppShellHeader";
+import { AppShellHeader } from "@/components/AppShellHeader";
+import { AppPageContainer } from "@/components/AppPageContainer";
+import { CycleRecapDialog } from "@/components/cycle/CycleRecapDialog";
+import {
+  CycleRecapOfferBanner,
+  dismissCycleRecapBanner,
+  isCycleRecapBannerDismissed,
+} from "@/components/cycle/CycleRecapOfferBanner";
 import { buildFinancialPace } from "@/utils/financialPace";
 import { buildDashboardInsights } from "@/utils/dashboardInsights";
 import { formatMoney, formatMonthNameOnly } from "@/utils/money";
@@ -40,6 +48,14 @@ import {
   getCycleWindowDatesForMonthKey,
   isIncomeCycleConfigured,
 } from "@/utils/incomeCycle";
+import {
+  buildCompletedCycleRecap,
+  resolvePlannedSavingsCents,
+} from "@/utils/cycleReviewModel";
+import {
+  budgetMonthKeyFromCycle,
+  isDateInBudgetCycle,
+} from "@/utils/budgetCycles";
 const NOTIFICATION_LOG_KEY = "bt_notification_log_v1";
 
 export default function Dashboard() {
@@ -65,6 +81,8 @@ export default function Dashboard() {
     upcomingUnpaidBillsCents,
     incomeCycle,
     selectedCycle,
+    budgetCycles,
+    categoryLimitsByMonth,
     isLoading,
     markRecurringBillPaid,
     categoryLimitsForMonth,
@@ -75,6 +93,69 @@ export default function Dashboard() {
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
   const { adjustments, refresh } = useBudgetAdjustments(userId || undefined, currentMonth);
+
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  const closedCycles = useMemo(
+    () =>
+      budgetCycles
+        .filter((c) => c.status === "closed")
+        .sort((a, b) => b.startDate.localeCompare(a.startDate)),
+    [budgetCycles],
+  );
+
+  const latestFinishedWithSpend = useMemo(() => {
+    for (const cycle of closedCycles) {
+      const spent = allExpenses
+        .filter((e) => isDateInBudgetCycle(e.date, cycle))
+        .reduce((s, e) => s + e.amountCents, 0);
+      if (spent > 0) return cycle;
+    }
+    return null;
+  }, [closedCycles, allExpenses]);
+
+  const showRecapBanner =
+    Boolean(latestFinishedWithSpend) &&
+    !bannerDismissed &&
+    latestFinishedWithSpend != null &&
+    !isCycleRecapBannerDismissed(latestFinishedWithSpend.id);
+
+  const history = useClosedCyclesHistory({
+    userId: isDemoMode ? undefined : userId || undefined,
+    closedCycles: latestFinishedWithSpend ? [latestFinishedWithSpend] : [],
+  });
+
+  const homeRecap = useMemo(() => {
+    if (!latestFinishedWithSpend) return null;
+    const cycle = latestFinishedWithSpend;
+    const cycleExpenses = allExpenses.filter((e) =>
+      isDateInBudgetCycle(e.date, cycle),
+    );
+    const monthKey = budgetMonthKeyFromCycle(cycle);
+    const limits = categoryLimitsByMonth[monthKey] ?? null;
+    return buildCompletedCycleRecap({
+      cycle,
+      expenses: cycleExpenses,
+      incomeCents: history.incomeByCycleId[cycle.id] ?? 0,
+      incomeEntries: [],
+      actualContributionsCents: history.contributionsByCycleId[cycle.id] ?? 0,
+      plannedSavingsCents: resolvePlannedSavingsCents(savingsGoals),
+      hasContributionsData: cycle.id in history.contributionsByCycleId,
+      categoryLimits: limits,
+      categories: allCategories,
+      isFirstFinishedCycle: closedCycles.length === 1,
+    });
+  }, [
+    latestFinishedWithSpend,
+    allExpenses,
+    categoryLimitsByMonth,
+    history.incomeByCycleId,
+    history.contributionsByCycleId,
+    savingsGoals,
+    allCategories,
+    closedCycles.length,
+  ]);
 
   const activeCurrency = budget?.currency ?? "EUR";
   const hasAnyRecurringBills = recurringBills.length > 0;
@@ -418,11 +499,11 @@ export default function Dashboard() {
           incomeCycle={incomeCycle}
           selectedCycle={selectedCycle}
           currency={activeCurrency}
-          contentMaxWidth={appShellMaxWidthClass}
         />
 
-        <main
-          className={`container ${appShellMaxWidthClass} space-y-3 px-4 pb-mobile-nav pr-mobile-fab pt-3 sm:space-y-4 sm:px-6 sm:pt-4 md:pb-8 md:pr-4 lg:px-7 lg:pt-4`}
+        <AppPageContainer
+          as="main"
+          className="space-y-3 pb-mobile-nav pr-mobile-fab pt-3 sm:space-y-4 sm:pt-4 md:pb-8 lg:pt-4"
         >
           {isLoading ? (
             <div className="card-dashboard p-6">
@@ -441,6 +522,19 @@ export default function Dashboard() {
 
           {hasHomeContent ? (
             <div className="dashboard-home-grid">
+              {showRecapBanner && latestFinishedWithSpend && homeRecap?.offerable ? (
+                <div className="dashboard-home-section col-span-full">
+                  <CycleRecapOfferBanner
+                    rangeLabel={homeRecap.rangeLabel}
+                    onPlay={() => setRecapOpen(true)}
+                    onDismiss={() => {
+                      dismissCycleRecapBanner(latestFinishedWithSpend.id);
+                      setBannerDismissed(true);
+                    }}
+                  />
+                </div>
+              ) : null}
+
               {isDemoMode && !budget ? null : (
                 <div className="dashboard-home-section dashboard-home-section--hero">
                   <MonthPlanCard
@@ -520,12 +614,13 @@ export default function Dashboard() {
               </div>
             </div>
           ) : null}
-        </main>
+        </AppPageContainer>
 
         <QuickAddExpenseSheet
           currency={activeCurrency}
           categories={allCategories}
           budgetMonth={currentMonth}
+          selectedCycle={selectedCycle}
           onAdd={addExpense}
         />
         <MobileBottomNav />
@@ -538,6 +633,13 @@ export default function Dashboard() {
           {...adjustSavings}
           currency={activeCurrency}
           cycleLabel={adjustSavingsCycleLabel}
+        />
+
+        <CycleRecapDialog
+          open={recapOpen}
+          onOpenChange={setRecapOpen}
+          recap={homeRecap}
+          currency={activeCurrency}
         />
       </div>
     </>

@@ -2,6 +2,7 @@ import { addDays, format, parseISO, startOfDay } from "date-fns";
 import type { BudgetCycle, BudgetCycleStatus, IncomeEntry } from "@/types/budgetCycle";
 import type { IncomeCycle } from "@/types/incomeCycle";
 import { getNextIncomeDate, isIncomeCycleConfigured } from "@/utils/incomeCycle";
+import { defaultExpenseDateForBudgetMonth, getTodayDate } from "@/utils/money";
 
 /** Half-open: start <= date < end */
 export function isDateInCycleRange(
@@ -15,6 +16,40 @@ export function isDateInCycleRange(
 
 export function isDateInBudgetCycle(dateYmd: string, cycle: BudgetCycle): boolean {
   return isDateInCycleRange(dateYmd, cycle.startDate, cycle.endDate);
+}
+
+/** Shift a YYYY-MM-DD by `days` using the local calendar (no UTC parseISO shift). */
+function shiftLocalYmd(ymd: string, days: number): string {
+  const m = ymd.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return ymd.slice(0, 10);
+  const dt = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days);
+  return format(dt, "yyyy-MM-dd");
+}
+
+/**
+ * Default calendar day for a new expense in the selected budget cycle.
+ * Uses today when today falls in the cycle (even across a calendar-month
+ * boundary); otherwise the cycle start (future) or last inclusive day (past).
+ * Falls back to the calendar-month helper when no cycle is available.
+ */
+export function defaultExpenseDateForBudgetCycle(
+  cycle: Pick<BudgetCycle, "startDate" | "endDate"> | null | undefined,
+  budgetMonthYm?: string,
+  todayYmd: string = getTodayDate(),
+): string {
+  if (cycle?.startDate && cycle?.endDate) {
+    const start = cycle.startDate.slice(0, 10);
+    const end = cycle.endDate.slice(0, 10);
+    if (isDateInCycleRange(todayYmd, start, end)) return todayYmd;
+    if (todayYmd >= end) {
+      // Half-open end: last inclusive day is the calendar day before `end`.
+      return shiftLocalYmd(end, -1);
+    }
+    return start;
+  }
+  const ym = budgetMonthYm?.trim();
+  if (ym) return defaultExpenseDateForBudgetMonth(ym);
+  return todayYmd;
 }
 
 export function scheduleTypeFromIncomeCycle(cycle: IncomeCycle | null | undefined): string {

@@ -58,7 +58,7 @@ export function DashboardInsightsCard({
           <p className="mt-1 text-sm text-muted-foreground">What to pay attention to right now</p>
         </div>
         <Link
-          to="/weekly-review"
+          to="/cycle"
           className="touch-hit shrink-0 text-sm font-medium text-[#6E4E91] transition-colors hover:text-[#4A3463]"
         >
           View all insights →

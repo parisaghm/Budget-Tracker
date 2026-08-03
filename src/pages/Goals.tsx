@@ -6,6 +6,7 @@ import { useOnboardingProfile } from "@/hooks/useOnboardingProfile";
 import { useAuth } from "@/context/AuthContext";
 import { useDemo } from "@/context/DemoContext";
 import { AppShellHeader } from "@/components/AppShellHeader";
+import { AppPageContainer } from "@/components/AppPageContainer";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { QuickAddExpenseSheet } from "@/components/QuickAddExpenseSheet";
 import { SavingsGoals } from "@/components/SavingsGoals";
@@ -104,44 +105,49 @@ export default function GoalsPage() {
           currentMonth={currentMonth}
           onMonthChange={setCurrentMonth}
           incomeCycle={incomeCycle}
-          contentMaxWidth="max-w-2xl"
         />
-        <main className="mx-auto w-full max-w-2xl flex-1 px-4 pr-mobile-fab pt-5 sm:px-6 sm:pt-8 md:pr-4 lg:px-8">
-          <SavingsGoals
-            goals={savingsGoals}
-            currency={activeCurrency}
-            hasSavingsPlan={authoritativePlan.hasPlan}
-            plannedSavingsCents={plannedSavingsCents}
-            allocatedThisCycleCents={allocatedThisCycleCents}
-            availableToAllocateCents={availableToAllocateCents}
-            contributionsByGoal={contributionsByGoal}
-            canAllocate={canAllocate}
-            isSavingAllocation={isSavingCycleAllocation}
-            suggestedPlanMonthlyCents={onboardingData.monthlySavingsGoalCents}
-            onSaveAllocation={async (payload) => {
-              if (isDemoMode) {
-                toast.info("Sample budget", {
-                  description: "Sign in to allocate savings to goals.",
-                });
-                return;
-              }
-              if (!authoritativePlan.hasPlan) {
-                toast.error("Savings plan not set", {
-                  description: "Set your monthly savings plan before allocating.",
-                });
-                return;
-              }
-              await saveCycleAllocation.mutateAsync(payload);
-            }}
-            onAddGoal={addSavingsGoal}
-            onUpdateGoal={updateSavingsGoal}
-            onDeleteGoal={deleteSavingsGoal}
-          />
-        </main>
+        <AppPageContainer
+          as="main"
+          className="flex-1 pb-mobile-nav pr-mobile-fab pt-5 sm:pt-8 md:pb-10"
+        >
+          <div className="mx-auto w-full max-w-2xl">
+            <SavingsGoals
+              goals={savingsGoals}
+              currency={activeCurrency}
+              hasSavingsPlan={authoritativePlan.hasPlan}
+              plannedSavingsCents={plannedSavingsCents}
+              allocatedThisCycleCents={allocatedThisCycleCents}
+              availableToAllocateCents={availableToAllocateCents}
+              contributionsByGoal={contributionsByGoal}
+              canAllocate={canAllocate}
+              isSavingAllocation={isSavingCycleAllocation}
+              suggestedPlanMonthlyCents={onboardingData.monthlySavingsGoalCents}
+              onSaveAllocation={async (payload) => {
+                if (isDemoMode) {
+                  toast.info("Sample budget", {
+                    description: "Sign in to allocate savings to goals.",
+                  });
+                  return;
+                }
+                if (!authoritativePlan.hasPlan) {
+                  toast.error("Savings plan not set", {
+                    description: "Set your monthly savings plan before allocating.",
+                  });
+                  return;
+                }
+                await saveCycleAllocation.mutateAsync(payload);
+              }}
+              onAddGoal={addSavingsGoal}
+              onUpdateGoal={updateSavingsGoal}
+              onDeleteGoal={deleteSavingsGoal}
+            />
+          </div>
+        </AppPageContainer>
         <QuickAddExpenseSheet
           currency={activeCurrency}
           categories={allCategories}
           budgetMonth={currentMonth}
+          selectedCycle={selectedCycle}
           onAdd={addExpense}
         />
         <MobileBottomNav />

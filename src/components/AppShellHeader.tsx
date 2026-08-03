@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { MonthSelector } from "@/components/MonthSelector";
 import { InstallAppButton } from "@/components/InstallAppButton";
+import { AppPageContainer } from "@/components/AppPageContainer";
 import type { IncomeCycle } from "@/types/incomeCycle";
 import type { BudgetCycle } from "@/types/budgetCycle";
 import { cn } from "@/lib/utils";
@@ -21,18 +22,10 @@ const navItems = [
   { to: "/dashboard", label: "Home", icon: Home },
   { to: "/budget", label: "Budget", icon: PiggyBank },
   { to: "/bills", label: "Bills", icon: CreditCard },
-  { to: "/weekly-review", label: "Review", icon: BarChart3 },
+  { to: "/cycle", label: "Cycles", icon: BarChart3 },
   { to: "/expenses", label: "Expenses", icon: ReceiptText },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
-
-/** Matches `main` shell containers so header and page content share the same horizontal grid. */
-export const appShellContainerClass = "container px-5 sm:px-7 lg:px-9";
-
-/** Default content width for primary app pages (Home, Budget, etc.). */
-export const appShellMaxWidthClass = "max-w-8xl";
-
-type ContentMaxWidth = "max-w-8xl" | "max-w-7xl" | "max-w-6xl" | "max-w-2xl";
 
 interface AppShellHeaderProps {
   title?: string;
@@ -44,8 +37,6 @@ interface AppShellHeaderProps {
   /** Frozen budget cycle for the selected month; the month label uses its exact dates. */
   selectedCycle?: BudgetCycle | null;
   trailing?: ReactNode;
-  /** Must match the `max-w-*` on the page’s `<main>` for edge alignment. */
-  contentMaxWidth?: ContentMaxWidth;
   /** Budget page mobile layout: flat header, bell, stacked month selector. */
   mobileLayout?: "default" | "budget";
 }
@@ -59,7 +50,6 @@ export function AppShellHeader({
   incomeCycle = null,
   selectedCycle = null,
   trailing,
-  contentMaxWidth = appShellMaxWidthClass,
   mobileLayout = "default",
 }: AppShellHeaderProps) {
   const location = useLocation();
@@ -68,7 +58,7 @@ export function AppShellHeader({
 
   return (
     <header className="pb-1 pt-4 sm:pb-1.5 sm:pt-5 lg:pt-6">
-      <div className={cn(appShellContainerClass, contentMaxWidth)}>
+      <AppPageContainer>
         <div
           className={cn(
             "shell-header-card",
@@ -199,7 +189,7 @@ export function AppShellHeader({
             })}
           </nav>
         </div>
-      </div>
+      </AppPageContainer>
     </header>
   );
 }

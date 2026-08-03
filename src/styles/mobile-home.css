@@ -61,17 +61,6 @@
   }
 }
 
-@media (min-width: 641px) {
-  .dashboard-home > header > .container,
-  .dashboard-home > main {
-    width: 100%;
-    max-width: 1350px;
-    margin: 0 auto;
-    padding-left: 32px;
-    padding-right: 32px;
-  }
-}
-
 @media (min-width: 1024px) {
   .dashboard-home-grid {
     display: grid;
