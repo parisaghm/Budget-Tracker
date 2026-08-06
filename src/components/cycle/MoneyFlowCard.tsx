@@ -14,7 +14,7 @@ export function MoneyFlowCard({
 }) {
   if (model.emptyReason) {
     return (
-      <section className="card-dashboard rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6">
+      <section className="card-dashboard rounded-[1.5rem] border border-border p-5 sm:p-6">
         <h2 className="font-display text-xl font-semibold text-foreground">
           Where the money flowed
         </h2>
@@ -26,7 +26,7 @@ export function MoneyFlowCard({
   const income = formatMoney(model.incomeReceivedCents, currency);
 
   return (
-    <section className="card-dashboard space-y-5 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6">
+    <section className="card-dashboard space-y-5 rounded-[1.5rem] border border-border p-5 sm:p-6">
       <header>
         <h2 className="font-display text-xl font-semibold text-foreground">
           Where the money flowed
@@ -82,7 +82,7 @@ export function MoneyFlowCard({
       </div>
 
       {model.perTenBreakdown ? (
-        <p className="rounded-2xl bg-[#F6F0E4]/80 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+        <p className="rounded-2xl bg-card/80 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
           Of every {formatMoney(1000, currency)} you earned this cycle:{" "}
           <span className="font-medium text-foreground">
             {formatMoney(model.perTenBreakdown.spentPerTenCents, currency)}

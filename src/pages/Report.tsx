@@ -18,6 +18,7 @@ export default function Report() {
     getMonthData,
     allCategories,
     savingsGoals,
+    displayCurrency,
   } = useSupabaseFinanceData();
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function Report() {
   const monthData = getMonthData(effectiveMonthKey);
 
   const salaryCents = monthData.budget?.salaryCents ?? 0;
-  const currency = monthData.budget?.currency ?? 'EUR';
+  const currency = displayCurrency;
 
   const totalSpentCents = useMemo(
     () => monthData.expenses.reduce((sum, exp) => sum + exp.amountCents, 0),

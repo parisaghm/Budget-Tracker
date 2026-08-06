@@ -2,6 +2,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Sector } from "recharts";
 import { formatMoney } from "@/utils/money";
 import type { ExpensesCategoryBreakdownItem } from "@/utils/expensesPageModel";
 import { cn } from "@/lib/utils";
+import { getChartTheme } from "@/utils/chartTheme";
 
 type DonutSlice = {
   key: string;
@@ -33,6 +34,7 @@ function ActiveShape(props: {
 }) {
   const { cx = 0, cy = 0, innerRadius = 0, outerRadius = 0, startAngle = 0, endAngle = 0, fill } =
     props;
+  const theme = getChartTheme();
   return (
     <Sector
       cx={cx}
@@ -42,7 +44,7 @@ function ActiveShape(props: {
       startAngle={startAngle}
       endAngle={endAngle}
       fill={fill}
-      stroke="#FFFDF8"
+      stroke={theme.card}
       strokeWidth={2}
     />
   );
@@ -95,6 +97,7 @@ export function SpendingCategoryDonut({
         }`;
 
   const isInteractive = breakdown.length > 0;
+  const theme = getChartTheme();
 
   return (
     <div className={cn("relative mx-auto w-full max-w-[260px]", className)}>
@@ -111,7 +114,7 @@ export function SpendingCategoryDonut({
               innerRadius="62%"
               outerRadius="88%"
               paddingAngle={breakdown.length > 1 ? 1.5 : 0}
-              stroke="#FFFDF8"
+              stroke={theme.card}
               strokeWidth={2}
               activeIndex={activeIndex >= 0 ? activeIndex : undefined}
               activeShape={activeIndex >= 0 ? ActiveShape : undefined}

@@ -40,16 +40,16 @@ export function BillsCalendar({
       <div className="flex items-baseline justify-between gap-3">
         <h2
           id="bills-calendar-heading"
-          className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411]"
+          className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-foreground"
         >
           {monthLabel} at a glance
         </h2>
-        <p className="text-xs text-[#9C9284]">Bills · paid · upcoming</p>
+        <p className="text-xs text-muted-foreground">Bills · paid · upcoming</p>
       </div>
 
       <div className="mt-4 grid grid-cols-7 gap-1 text-center">
         {WEEKDAY_LABELS.map((label, index) => (
-          <div key={`${label}-${index}`} className="pb-1 text-[0.6875rem] font-medium text-[#9C9284]">
+          <div key={`${label}-${index}`} className="pb-1 text-[0.6875rem] font-medium text-muted-foreground">
             {label}
           </div>
         ))}
@@ -72,18 +72,18 @@ export function BillsCalendar({
         })}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[#746A5D]">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#6E4E91]" aria-hidden /> Upcoming
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden /> Upcoming
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#3B6B41]" aria-hidden /> Paid
+          <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden /> Paid
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#C0574A]" aria-hidden /> Overdue
+          <span className="h-1.5 w-1.5 rounded-full bg-destructive" aria-hidden /> Overdue
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-[#6E4E91]/50" aria-hidden /> Today
+          <span className="h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-primary/50" aria-hidden /> Today
         </span>
       </div>
     </section>

@@ -22,6 +22,7 @@ const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Signup = lazy(() => import("./pages/Signup"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const OnboardingPage = lazy(() => import("./pages/Onboarding"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 const BillsPage = lazy(() => import("./pages/Bills"));
@@ -176,14 +177,8 @@ const App = () => (
                       </RedirectIfAuth>
                     }
                   />
-                  <Route
-                    path="/reset-password"
-                    element={
-                      <RedirectIfAuth>
-                        <ResetPassword />
-                      </RedirectIfAuth>
-                    }
-                  />
+                  <Route path="/update-password" element={<UpdatePassword />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>

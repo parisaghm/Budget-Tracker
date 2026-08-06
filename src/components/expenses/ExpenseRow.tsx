@@ -27,7 +27,7 @@ export function ExpenseRow({
   const title = expense.note?.trim() || "Untitled expense";
 
   return (
-    <article className="flex items-center gap-3 rounded-2xl border border-[#E8DFCC] bg-[#FFFDF8] px-3 py-3 sm:px-4">
+    <article className="flex items-center gap-3 rounded-2xl border border-border bg-popover px-3 py-3 sm:px-4">
       <CategoryEmojiIcon
         categoryValue={expense.category}
         iconKey={categoryDef?.iconKey}

@@ -423,7 +423,7 @@ export function SavingsGoals({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="goal-target">Target amount (€)</Label>
+              <Label htmlFor="goal-target">Target amount ({getCurrencySymbol(currency)})</Label>
               <Input
                 id="goal-target"
                 type="number"

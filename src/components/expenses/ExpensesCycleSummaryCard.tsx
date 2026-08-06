@@ -48,7 +48,7 @@ export function ExpensesCycleSummaryCard({
   return (
     <section
       className={cn(
-        "card-dashboard flex flex-col gap-5 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6",
+        "card-dashboard flex flex-col gap-5 rounded-[1.5rem] border border-border p-5 sm:p-6",
         className,
       )}
     >
@@ -90,7 +90,7 @@ export function ExpensesCycleSummaryCard({
             <button
               type="button"
               onClick={() => setShowAll((v) => !v)}
-              className="mt-2 w-full rounded-xl px-2 py-2 text-center text-xs font-semibold text-primary hover:bg-[#EFE7F7]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="mt-2 w-full rounded-xl px-2 py-2 text-center text-xs font-semibold text-primary hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               {showAll ? "Show fewer categories" : "View all categories"}
             </button>

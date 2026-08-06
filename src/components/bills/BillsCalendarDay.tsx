@@ -20,16 +20,16 @@ function buildMarkers(activity?: CalendarDayActivity): Marker[] {
   if (!activity) return [];
   const markers: Marker[] = [];
   if (activity.overdueCount > 0) {
-    markers.push({ key: "overdue", className: "bg-[#C0574A]", label: "overdue" });
+    markers.push({ key: "overdue", className: "bg-destructive", label: "overdue" });
   }
   if (activity.dueTodayCount > 0) {
-    markers.push({ key: "today", className: "bg-[#B07A3B]", label: "due today" });
+    markers.push({ key: "today", className: "bg-warning", label: "due today" });
   }
   if (activity.upcomingCount > 0) {
-    markers.push({ key: "upcoming", className: "bg-[#6E4E91]", label: "upcoming" });
+    markers.push({ key: "upcoming", className: "bg-primary", label: "upcoming" });
   }
   if (activity.paidCount > 0) {
-    markers.push({ key: "paid", className: "bg-[#3B6B41]", label: "paid" });
+    markers.push({ key: "paid", className: "bg-success", label: "paid" });
   }
   return markers;
 }
@@ -59,12 +59,12 @@ export function BillsCalendarDay({
       aria-label={`${dayNumber}${isToday ? " (today)" : ""}${summary}`}
       className={cn(
         "relative flex aspect-square flex-col items-center justify-center rounded-xl text-sm transition-colors",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E4E91]/40",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
         isSelected
-          ? "bg-[#6E4E91] text-white"
-          : "text-[#2B221B] hover:bg-[#F3EBE0]",
-        !isSelected && isToday && "ring-1 ring-inset ring-[#6E4E91]/50",
-        !isSelected && hasActivity && "bg-[#FBF7EF]",
+          ? "bg-primary text-primary-foreground"
+          : "text-foreground hover:bg-muted",
+        !isSelected && isToday && "ring-1 ring-inset ring-primary/50",
+        !isSelected && hasActivity && "bg-accent/40",
       )}
     >
       <span className={cn("leading-none", isToday && !isSelected && "font-semibold")}>
@@ -77,12 +77,12 @@ export function BillsCalendarDay({
               key={marker.key}
               className={cn(
                 "h-1.5 w-1.5 rounded-full",
-                isSelected ? "bg-white/90" : marker.className,
+                isSelected ? "bg-primary-foreground/90" : marker.className,
               )}
             />
           ))}
           {total > 3 ? (
-            <span className={cn("ml-0.5 text-[0.5625rem] leading-none", isSelected ? "text-white/90" : "text-[#746A5D]")}>
+            <span className={cn("ml-0.5 text-[0.5625rem] leading-none", isSelected ? "text-primary-foreground/90" : "text-muted-foreground")}>
               +{total - 3}
             </span>
           ) : null}

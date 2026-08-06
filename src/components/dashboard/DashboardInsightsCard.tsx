@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ChevronRight, Lightbulb, Sparkles, TrendingUp } from "lucide-react";
 import type { DashboardInsight } from "@/utils/dashboardInsights";
+import { cn } from "@/lib/utils";
 
 interface DashboardInsightsCardProps {
   insights: DashboardInsight[];
@@ -11,11 +12,11 @@ interface DashboardInsightsCardProps {
 
 const TONE_STYLE: Record<
   DashboardInsight["tone"],
-  { icon: typeof TrendingUp; bg: string; color: string }
+  { icon: typeof TrendingUp; className: string }
 > = {
-  positive: { icon: TrendingUp, bg: "hsl(96 22% 88%)", color: "#4A5C40" },
-  caution: { icon: Lightbulb, bg: "hsl(40 62% 90%)", color: "#B07A3B" },
-  neutral: { icon: Sparkles, bg: "#EFE7F7", color: "#6E4E91" },
+  positive: { icon: TrendingUp, className: "bg-success/15 text-success" },
+  caution: { icon: Lightbulb, className: "bg-warning/15 text-warning" },
+  neutral: { icon: Sparkles, className: "bg-accent text-primary" },
 };
 
 export function DashboardInsightsCard({
@@ -50,7 +51,7 @@ export function DashboardInsightsCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#6E4E91]" aria-hidden />
+            <Sparkles className="h-4 w-4 text-primary" aria-hidden />
             <h2 id="dashboard-insights-heading" className="heading-card">
               Insights
             </h2>
@@ -59,7 +60,7 @@ export function DashboardInsightsCard({
         </div>
         <Link
           to="/cycle"
-          className="touch-hit shrink-0 text-sm font-medium text-[#6E4E91] transition-colors hover:text-[#4A3463]"
+          className="touch-hit shrink-0 text-sm font-medium text-primary transition-colors hover:text-primary"
         >
           View all insights →
         </Link>
@@ -67,17 +68,14 @@ export function DashboardInsightsCard({
 
       <ul className="mt-4 space-y-2" role="list">
         {displayInsights.map((insight) => {
-          const { icon: Icon, bg, color } = TONE_STYLE[insight.tone];
+          const { icon: Icon, className: toneClass } = TONE_STYLE[insight.tone];
           return (
             <li key={insight.id}>
               <div className="insight-row">
-                <div
-                  className="insight-row__icon"
-                  style={{ backgroundColor: bg, color }}
-                >
+                <div className={cn("insight-row__icon", toneClass)}>
                   <Icon className="h-4 w-4" aria-hidden />
                 </div>
-                <p className="min-w-0 flex-1 text-sm leading-relaxed text-[#2B221B]">
+                <p className="min-w-0 flex-1 text-sm leading-relaxed text-foreground">
                   {insight.message}
                 </p>
                 <ChevronRight className="insight-row__chevron h-4 w-4" aria-hidden />

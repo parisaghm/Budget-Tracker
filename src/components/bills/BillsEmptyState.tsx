@@ -29,9 +29,9 @@ export function BillsEmptyState({
       )}
     >
       {title ? (
-        <h3 className="text-base font-semibold text-[#1A1411]">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
       ) : null}
-      <p className={cn("mx-auto max-w-sm text-sm leading-relaxed text-[#746A5D]", title && "mt-1.5")}>
+      <p className={cn("mx-auto max-w-sm text-sm leading-relaxed text-muted-foreground", title && "mt-1.5")}>
         {description}
       </p>
       {actionLabel && onAction ? (

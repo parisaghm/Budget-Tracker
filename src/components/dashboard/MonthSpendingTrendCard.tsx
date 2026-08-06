@@ -76,11 +76,11 @@ export function MonthSpendingTrendCard({
         <div className="month-trend-header__left">
           <h2
             id="month-spending-trend-heading"
-            className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411]"
+            className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-foreground"
           >
             Monthly spending trend
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">{cycleLabel}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{cycleLabel}</p>
 
           {hasSpending ? (
             <div className="month-trend-toggle" role="group" aria-label="Spending trend view">
@@ -103,10 +103,10 @@ export function MonthSpendingTrendCard({
         </div>
 
         <div className="month-trend-header__right">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#746A5D]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Spent
           </p>
-          <p className="money-display-md mt-1 text-[1.25rem] leading-none text-[#1A1411] sm:text-[1.45rem]">
+          <p className="money-display-md mt-1 text-[1.25rem] leading-none text-foreground sm:text-[1.45rem]">
             <AnimatedMoney
               cents={totalSpentCents}
               currency={currency}
@@ -132,11 +132,11 @@ export function MonthSpendingTrendCard({
             <div className="month-trend-empty-illustration">
               <Wallet className="h-7 w-7" aria-hidden />
             </div>
-            <p className="text-sm font-medium text-[#2B221B]">No spending recorded yet</p>
-            <p className="mt-1 text-sm leading-relaxed text-[#746A5D]">
+            <p className="text-sm font-medium text-foreground">No spending recorded yet</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
               Your trend will appear here after the first expense for this cycle.
             </p>
-            <p className="mt-3 rounded-full border border-[#E8DFCC] bg-[#FFFDF8] px-3 py-1 text-xs font-medium text-[#6E4E91]">
+            <p className="mt-3 rounded-full border border-border bg-popover px-3 py-1 text-xs font-medium text-primary">
               Add your first expense to start the chart
             </p>
           </div>

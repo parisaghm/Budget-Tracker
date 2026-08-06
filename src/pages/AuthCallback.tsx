@@ -7,9 +7,14 @@ import { hasSupabaseEnv, supabase, supabaseEnvError } from "@/lib/supabase/clien
 
 const FALLBACK_TARGET = "/dashboard";
 
+/** Paths that should not be restored after auth; send users to home instead. */
+const NON_RETURN_PATHS = new Set(["/settings", "/login", "/signup", "/onboarding", "/auth/callback"]);
+
 function sanitizeNextPath(candidate: string | null) {
-  if (!candidate) return FALLBACK_TARGET;
-  return candidate.startsWith("/") ? candidate : FALLBACK_TARGET;
+  if (!candidate || !candidate.startsWith("/")) return FALLBACK_TARGET;
+  const pathname = candidate.split("?")[0]?.split("#")[0] ?? candidate;
+  if (NON_RETURN_PATHS.has(pathname)) return FALLBACK_TARGET;
+  return candidate;
 }
 
 export default function AuthCallback() {

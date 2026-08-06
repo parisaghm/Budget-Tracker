@@ -104,7 +104,7 @@ export function CycleRecapDialog({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-primary-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             aria-label="Close recap"
             style={{ color: STORY_TEXT }}
           >

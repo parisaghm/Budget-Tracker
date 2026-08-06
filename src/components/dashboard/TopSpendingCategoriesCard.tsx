@@ -65,7 +65,7 @@ export function TopSpendingCategoriesCard({
             className="dashboard-empty-icon"
             style={{ backgroundColor: "hsl(32 42% 58% / 0.14)" }}
           >
-            <ArrowUpRight className="h-5 w-5 text-[#B07A3B]" aria-hidden />
+            <ArrowUpRight className="h-5 w-5 text-warning" aria-hidden />
           </div>
           <p className="text-sm text-muted-foreground">
             No spending recorded this month yet. Your top categories will appear here.
@@ -73,7 +73,7 @@ export function TopSpendingCategoriesCard({
           <Button
             asChild
             variant="outline"
-            className="mt-4 rounded-full border-[#E8DFCC] bg-[#FFFDF8] text-[#2B221B] hover:bg-[#EFE7F7] hover:text-[#4A3463]"
+            className="mt-4 rounded-full border-border bg-popover text-foreground hover:bg-accent hover:text-primary"
           >
             <Link to="/expenses">View all expenses</Link>
           </Button>

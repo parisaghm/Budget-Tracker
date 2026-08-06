@@ -233,13 +233,13 @@ function ActionRow({
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium text-[#1A1411]">{title}</p>
+          <p className="text-sm font-medium text-foreground">{title}</p>
           {suggested ? <span className="badge-next-step-suggested">Suggested</span> : null}
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
       </div>
       <ChevronRight
-        className="card-next-step-action-chevron h-4 w-4 shrink-0 text-[#6E4E91]/45"
+        className="card-next-step-action-chevron h-4 w-4 shrink-0 text-primary/45"
         aria-hidden
       />
     </>
@@ -317,7 +317,7 @@ function RolloverNextStepBody({
         </button>
       </div>
 
-      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>
@@ -446,7 +446,7 @@ function PaceSupportNextStepBody({
         </p>
       </div>
 
-      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>
@@ -647,7 +647,7 @@ function OverspendNextStepBody({
         </button>
       </div>
 
-      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>
@@ -752,7 +752,7 @@ export function NextStepCard({
         ) : null}
       </div>
 
-      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-xl">
+      <h3 className="mt-3 break-words text-lg font-semibold leading-snug tracking-[-0.015em] text-foreground sm:text-xl">
         {step.title}
       </h3>
       <p className="mt-3 text-sm leading-[1.65] text-muted-foreground">{step.description}</p>

@@ -6,7 +6,7 @@ const toneClass: Record<PillTone, string> = {
   healthy: "bg-success/15 text-success border-success/20",
   caution: "bg-warning/15 text-warning border-warning/25",
   over_plan: "bg-destructive/10 text-destructive border-destructive/20",
-  info: "bg-[#F6F0E4] text-foreground/80 border-[#E8DFCC]",
+  info: "bg-card text-foreground/80 border-border",
 };
 
 export function CycleStatusPill({

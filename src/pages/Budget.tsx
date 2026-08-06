@@ -27,6 +27,7 @@ export default function BudgetPage() {
     currentMonth,
     setCurrentMonth,
     budget,
+    displayCurrency,
     expenses,
     setSalary,
     updateIncomeEntry,
@@ -51,7 +52,7 @@ export default function BudgetPage() {
     isSavingCycleAllocation,
   } = useSupabaseFinanceData();
 
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
   const showIncomePanel = !isDemoMode && (hasIncomeForCycle || showSalaryEditor);
 
   const model = useMemo(

@@ -80,7 +80,7 @@ export function AppShellHeader({
                   <div className="min-w-0">
                     <h1
                       className={cn(
-                        "leading-snug text-[#1A1411]",
+                        "leading-snug text-foreground",
                         isBrandTitle
                           ? "font-display text-lg font-medium tracking-[-0.02em]"
                           : "text-lg font-medium",
@@ -130,7 +130,7 @@ export function AppShellHeader({
                 <div className="flex flex-wrap items-center gap-2">
                   <h1
                     className={cn(
-                      "leading-snug text-[#1A1411]",
+                      "leading-snug text-foreground",
                       isBrandTitle
                         ? "font-display text-lg font-medium tracking-[-0.02em] sm:text-[1.35rem]"
                         : "text-lg font-medium sm:text-xl",
@@ -140,7 +140,7 @@ export function AppShellHeader({
                   </h1>
                   {currency ? <span className="shell-currency-pill">{currency}</span> : null}
                 </div>
-                <p className="mt-0.5 hidden text-xs font-normal leading-relaxed text-[#746A5D] sm:block">
+                <p className="mt-0.5 hidden text-xs font-normal leading-relaxed text-muted-foreground sm:block">
                   {subtitle}
                 </p>
               </div>
@@ -168,7 +168,7 @@ export function AppShellHeader({
           </div>
 
           <nav
-            className="mt-4 hidden flex-wrap items-center gap-1 border-t border-[#E8DFCC] pt-3.5 md:flex"
+            className="mt-4 hidden flex-wrap items-center gap-1 border-t border-border pt-3.5 md:flex"
             aria-label="Main"
           >
             {navItems.map(({ to, label, icon: Icon }) => {

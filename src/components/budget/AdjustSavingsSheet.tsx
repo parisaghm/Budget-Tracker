@@ -42,6 +42,7 @@ function AdjustSavingsContent({
 }: AdjustSavingsSheetProps) {
   const currencySymbol = getCurrencySymbol(currency);
 
+  const sym = getCurrencySymbol(currency);
   const quickOptions = [
     {
       id: "deficit" as const,
@@ -50,12 +51,12 @@ function AdjustSavingsContent({
     },
     {
       id: "buffer50" as const,
-      label: "Leave €50 buffer",
+      label: `Leave ${sym}50 buffer`,
       amountCents: Math.min(deficitCents + 5000, maxReductionCents),
     },
     {
       id: "buffer100" as const,
-      label: "Leave €100 buffer",
+      label: `Leave ${sym}100 buffer`,
       amountCents: Math.min(deficitCents + 10000, maxReductionCents),
     },
   ];
@@ -64,21 +65,21 @@ function AdjustSavingsContent({
     <div className={cn("adjust-savings-sheet", isSaving && "adjust-savings-sheet--saving")}>
       {isSaving ? (
         <div className="adjust-savings-sheet__loading" role="status" aria-live="polite">
-          <Loader2 className="h-5 w-5 animate-spin text-[#6E4E91]" aria-hidden />
-          <span className="text-sm font-medium text-[#2B221B]">Adjusting savings...</span>
+          <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden />
+          <span className="text-sm font-medium text-foreground">Adjusting savings...</span>
         </div>
       ) : null}
 
       <div className={cn("adjust-savings-sheet__body", isSaving && "adjust-savings-sheet__body--dimmed")}>
       <div className="adjust-savings-sheet__header">
-        <h2 className="text-lg font-semibold tracking-[-0.015em] text-[#1A1411]">
+        <h2 className="text-lg font-semibold tracking-[-0.015em] text-foreground">
           Adjust savings
         </h2>
         <button
           type="button"
           onClick={() => setOpen(false)}
           disabled={isSaving}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#746A5D] transition-colors hover:bg-[#EFE7F7]/60 hover:text-[#1A1411] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E4E91]/30 disabled:opacity-40"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:opacity-40"
           aria-label="Close"
         >
           <X className="h-4 w-4" aria-hidden />
@@ -86,8 +87,8 @@ function AdjustSavingsContent({
       </div>
 
       <div className="adjust-savings-sheet__alert" role="status">
-        <AlertCircle className="h-4 w-4 shrink-0 text-[#9C5A56]" aria-hidden />
-        <p className="text-sm leading-relaxed text-[#2B221B]">
+        <AlertCircle className="h-4 w-4 shrink-0 text-destructive" aria-hidden />
+        <p className="text-sm leading-relaxed text-foreground">
           You&apos;re {formatMoney(deficitCents, currency)} over your available budget this cycle.
           Reducing this month&apos;s savings contribution can bring your Safe to Spend back to{" "}
           {formatMoney(0, currency)}.
@@ -96,29 +97,29 @@ function AdjustSavingsContent({
 
       <div className="adjust-savings-sheet__summary">
         <div className="adjust-savings-sheet__summary-row">
-          <span className="text-sm text-[#746A5D]">Current savings contribution</span>
-          <span className="money-amount-sm text-sm text-[#1A1411]">
+          <span className="text-sm text-muted-foreground">Current savings contribution</span>
+          <span className="money-amount-sm text-sm text-foreground">
             {formatMoney(activeSavingsContributionCents, currency)}
           </span>
         </div>
         <div className="adjust-savings-sheet__summary-row">
-          <span className="text-sm text-[#746A5D]">Recommended reduction</span>
-          <span className="money-amount-sm text-sm text-[#9C5A56]">
+          <span className="text-sm text-muted-foreground">Recommended reduction</span>
+          <span className="money-amount-sm text-sm text-destructive">
             −{formatMoney(reductionCents > 0 ? reductionCents : Math.min(deficitCents, maxReductionCents), currency)}
           </span>
         </div>
         <div className="adjust-savings-sheet__summary-row">
-          <span className="text-sm text-[#746A5D]">New savings contribution</span>
-          <span className="money-amount-sm text-sm text-[#1A1411]">
+          <span className="text-sm text-muted-foreground">New savings contribution</span>
+          <span className="money-amount-sm text-sm text-foreground">
             {formatMoney(projection.newSavingsContributionCents, currency)}
           </span>
         </div>
         <div className="adjust-savings-sheet__summary-row adjust-savings-sheet__summary-row--total">
-          <span className="text-sm font-medium text-[#2B221B]">New Safe to Spend</span>
+          <span className="text-sm font-medium text-foreground">New Safe to Spend</span>
           <span
             className={cn(
               "money-display-md text-base",
-              projection.newSafeToSpendCents >= 0 ? "text-[#4A5C40]" : "text-[#9C5A56]",
+              projection.newSafeToSpendCents >= 0 ? "text-success" : "text-destructive",
             )}
           >
             {formatMoney(projection.newSafeToSpendCents, currency)}
@@ -127,11 +128,11 @@ function AdjustSavingsContent({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="adjust-savings-amount" className="text-sm font-medium text-[#2B221B]">
+        <Label htmlFor="adjust-savings-amount" className="text-sm font-medium text-foreground">
           Reduce savings by
         </Label>
         <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-[#746A5D]">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
             {currencySymbol}
           </span>
           <Input
@@ -143,11 +144,11 @@ function AdjustSavingsContent({
             value={reductionInput}
             onChange={(e) => setReductionInput(e.target.value)}
             disabled={isSaving}
-            className="h-11 rounded-xl border-[#E8DFCC] bg-[#FFFDF8] pl-8 text-base"
+            className="h-11 rounded-xl border-border bg-popover pl-8 text-base"
             inputMode="decimal"
           />
         </div>
-        <p className="text-xs text-[#746A5D]">
+        <p className="text-xs text-muted-foreground">
           Enter any amount up to {formatMoney(maxReductionCents, currency)}
         </p>
         {reductionError ? (
@@ -156,7 +157,7 @@ function AdjustSavingsContent({
       </div>
 
       <div className="grid gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#746A5D]">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Quick options
         </p>
         <div className="flex flex-wrap gap-2">
@@ -189,7 +190,7 @@ function AdjustSavingsContent({
           <Button
             type="button"
             variant="outline"
-            className="flex-1 rounded-full border-[#E8DFCC] bg-[#FFFDF8]"
+            className="flex-1 rounded-full border-border bg-popover"
             onClick={() => setOpen(false)}
             disabled={isSaving}
           >
@@ -197,14 +198,14 @@ function AdjustSavingsContent({
           </Button>
           <Button
             type="button"
-            className="flex-1 rounded-full bg-[#6E4E91] hover:bg-[#5C4580]"
+            className="flex-1 rounded-full bg-primary hover:bg-primary/90"
             disabled={!canConfirm || isSaving}
             onClick={() => void applyAdjustment()}
           >
             {isSaving ? "Adjusting savings..." : "Confirm adjustment"}
           </Button>
         </div>
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-[#746A5D]">
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
           <Lock className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
           Only affects your current cycle ({cycleLabel.replace(" (current cycle)", "")}).
         </p>
@@ -226,7 +227,7 @@ export function AdjustSavingsSheet(props: AdjustSavingsSheetProps) {
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={handleOpenChange}>
-        <DrawerContent className="max-h-[92vh] rounded-t-[1.5rem] border-[#E8DFCC] bg-[#FFFDF8] px-0 pb-6">
+        <DrawerContent className="max-h-[92vh] rounded-t-[1.5rem] border-border bg-popover px-0 pb-6">
           <DrawerTitle className="sr-only">Adjust savings</DrawerTitle>
           <div className="overflow-y-auto px-4 pb-2 pt-1">
             <AdjustSavingsContent {...props} />
@@ -238,7 +239,7 @@ export function AdjustSavingsSheet(props: AdjustSavingsSheetProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md gap-0 overflow-hidden rounded-[1.5rem] border-[#E8DFCC] bg-[#FFFDF8] p-0 sm:max-w-lg">
+      <DialogContent className="max-w-md gap-0 overflow-hidden rounded-[1.5rem] border-border bg-popover p-0 sm:max-w-lg">
         <DialogTitle className="sr-only">Adjust savings</DialogTitle>
         <div className="p-6">
           <AdjustSavingsContent {...props} />

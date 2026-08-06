@@ -47,13 +47,13 @@ export function ExpenseActionsMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-[#F6F0E4] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           aria-label="Expense actions"
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 rounded-xl border-[#E8DFCC]">
+      <DropdownMenuContent align="end" className="w-48 rounded-xl border-border">
         <DropdownMenuItem className="cursor-pointer gap-2 rounded-lg" onSelect={() => onEdit()}>
           <PencilLine className="h-4 w-4" aria-hidden />
           Edit expense
@@ -65,7 +65,7 @@ export function ExpenseActionsMenu({
             Change category
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
-            <DropdownMenuSubContent className="max-h-64 w-56 overflow-y-auto rounded-xl border-[#E8DFCC]">
+            <DropdownMenuSubContent className="max-h-64 w-56 overflow-y-auto rounded-xl border-border">
               {categories.map((cat) => {
                 const selected = cat.value === expense.category;
                 return (
@@ -74,7 +74,7 @@ export function ExpenseActionsMenu({
                     disabled={isUpdating}
                     className={cn(
                       "cursor-pointer gap-2 rounded-lg",
-                      selected && "bg-[#EFE7F7] text-[#6E4E91]",
+                      selected && "bg-accent text-primary",
                     )}
                     onSelect={() => void handleCategoryPick(cat.value)}
                   >

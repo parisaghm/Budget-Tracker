@@ -20,7 +20,7 @@ export function FinishedCyclesCard({
   onPlayRecap: (cycleId: string) => void;
 }) {
   return (
-    <section className="card-dashboard space-y-4 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6">
+    <section className="card-dashboard space-y-4 rounded-[1.5rem] border border-border p-5 sm:p-6">
       <header>
         <h2 className="font-display text-xl font-semibold text-foreground">
           Finished cycles
@@ -31,7 +31,7 @@ export function FinishedCyclesCard({
       </header>
 
       {cycles.length === 0 ? (
-        <p className="rounded-2xl bg-[#F6F0E4]/80 px-4 py-3 text-sm text-muted-foreground">
+        <p className="rounded-2xl bg-card/80 px-4 py-3 text-sm text-muted-foreground">
           Your first completed-cycle recap will appear here.
         </p>
       ) : (
@@ -74,7 +74,7 @@ export function FinishedCycleRow({
   onPlayRecap: () => void;
 }) {
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border border-[#E8DFCC]/80 bg-[#FFFDF8]/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-popover/60 p-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 space-y-1">
         <p className="text-sm font-medium text-foreground">{row.rangeLabel}</p>
         <p className="text-xs leading-relaxed text-muted-foreground">
@@ -89,7 +89,7 @@ export function FinishedCycleRow({
           type="button"
           variant="outline"
           size="sm"
-          className="shrink-0 rounded-full border-[#E8DFCC]"
+          className="shrink-0 rounded-full border-border"
           onClick={onPlayRecap}
           aria-label={`Play recap for ${row.rangeLabel}`}
         >

@@ -14,12 +14,18 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { onboardingData, isReady, complete } = useOnboardingProfile();
-  const { hasAnyData, isLoading, budget, syncFromOnboarding } = useSupabaseFinanceData();
+  const { hasAnyData, isLoading, displayCurrency, syncFromOnboarding } = useSupabaseFinanceData();
   const completionInFlightRef = useRef(false);
 
   const targetPath = useMemo(() => {
     const from = location.state as { from?: string } | null;
-    return from?.from ?? "/dashboard";
+    const candidate = from?.from;
+    if (!candidate || !candidate.startsWith("/")) return "/dashboard";
+    const pathname = candidate.split("?")[0]?.split("#")[0] ?? candidate;
+    if (pathname === "/settings" || pathname === "/onboarding" || pathname === "/login") {
+      return "/dashboard";
+    }
+    return candidate;
   }, [location.state]);
 
   if (loading) {
@@ -81,7 +87,7 @@ export default function OnboardingPage() {
   return (
     <OnboardingFlow
       initialData={onboardingData}
-      currency={budget?.currency ?? "EUR"}
+      currency={displayCurrency}
       onExploreDemo={enterDemo}
       onComplete={handleComplete}
     />

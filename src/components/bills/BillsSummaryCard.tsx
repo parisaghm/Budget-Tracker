@@ -39,7 +39,7 @@ export function BillsSummaryCard({
       <div className="flex items-start justify-between gap-4">
         <p
           id="bills-summary-heading"
-          className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-[#8A7F6E]"
+          className="text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
         >
           Due before next income
         </p>
@@ -53,12 +53,12 @@ export function BillsSummaryCard({
         </Button>
       </div>
 
-      <p className="mt-3 font-display text-[2.5rem] font-medium leading-none tracking-[-0.02em] text-[#1A1411] sm:text-[3rem]">
+      <p className="mt-3 font-display text-[2.5rem] font-medium leading-none tracking-[-0.02em] text-foreground sm:text-[3rem]">
         {formatMoney(dueBeforeNextIncomeCents, currency)}
       </p>
 
-      <p className="mt-3 text-sm leading-relaxed text-[#746A5D]">{helperText}</p>
-      <p className="mt-1 text-sm leading-relaxed text-[#2B221B]">
+      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{helperText}</p>
+      <p className="mt-1 text-sm leading-relaxed text-foreground">
         {hasBills && nextBill ? (
           <>
             {count} bill{count === 1 ? "" : "s"} · next is{" "}

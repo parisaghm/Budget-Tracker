@@ -8,10 +8,10 @@ import { formatMoney } from "@/utils/money";
 const GOAL_ICONS: LucideIcon[] = [Umbrella, Plane, Bike, Target];
 
 const GOAL_BG = [
-  "hsl(278 24% 38% / 0.1)",
-  "hsl(32 42% 58% / 0.14)",
-  "hsl(152 28% 38% / 0.12)",
-  "hsl(278 16% 72% / 0.2)",
+  "hsl(var(--primary) / 0.12)",
+  "hsl(var(--warning) / 0.14)",
+  "hsl(var(--success) / 0.12)",
+  "hsl(var(--accent) / 0.55)",
 ];
 
 export interface GoalsSnapshotCardProps {
@@ -55,7 +55,7 @@ export function GoalsSnapshotCard({
           ) : (
             <p className="mt-2 text-xs text-muted-foreground">
               Savings plan not set.{" "}
-              <Link to="/goals" className="font-medium text-[#6E4E91] hover:text-[#4A3463]">
+              <Link to="/goals" className="font-medium text-primary hover:text-primary">
                 Set savings plan
               </Link>
             </p>
@@ -63,7 +63,7 @@ export function GoalsSnapshotCard({
         </div>
         <Link
           to="/goals"
-          className="touch-hit shrink-0 text-sm font-medium text-[#6E4E91] transition-colors hover:text-[#4A3463]"
+          className="touch-hit shrink-0 text-sm font-medium text-primary transition-colors hover:text-primary"
         >
           View all goals →
         </Link>
@@ -117,7 +117,7 @@ export function GoalsSnapshotCard({
           <Button
             asChild
             variant="outline"
-            className="mt-4 rounded-full border-[#E8DFCC] bg-[#FFFDF8] text-[#2B221B] hover:bg-[#EFE7F7] hover:text-[#4A3463]"
+            className="mt-4 rounded-full border-border bg-popover text-foreground hover:bg-accent hover:text-primary"
           >
             <Link to="/goals">Create goal</Link>
           </Button>

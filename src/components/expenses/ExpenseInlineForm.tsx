@@ -209,7 +209,7 @@ export function ExpenseInlineForm({
       onSubmit={(e) => void handleSubmit(e)}
       onKeyDown={handleKeyDown}
       className={cn(
-        "rounded-2xl border border-[#E8DFCC] bg-[#F6F0E4]/80 p-3.5 sm:p-4",
+        "rounded-2xl border border-border bg-card/80 p-3.5 sm:p-4",
         className,
       )}
       aria-label={isEditing ? "Edit expense" : "Add expense"}
@@ -235,10 +235,10 @@ export function ExpenseInlineForm({
             aria-invalid={Boolean(fieldErrors.note)}
             aria-describedby={fieldErrors.note ? noteErrorId : undefined}
             className={cn(
-              "h-11 w-full rounded-xl border bg-[#FFFDF8] px-3.5 text-sm text-foreground placeholder:text-muted-foreground",
+              "h-11 w-full rounded-xl border bg-popover px-3.5 text-sm text-foreground placeholder:text-muted-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
               "disabled:cursor-not-allowed disabled:opacity-60",
-              fieldErrors.note ? "border-destructive/50" : "border-[#E8DFCC]",
+              fieldErrors.note ? "border-destructive/50" : "border-border",
             )}
           />
           {fieldErrors.note ? (
@@ -275,10 +275,10 @@ export function ExpenseInlineForm({
               aria-invalid={Boolean(fieldErrors.amount)}
               aria-describedby={fieldErrors.amount ? amountErrorId : undefined}
               className={cn(
-                "h-11 w-full rounded-xl border bg-[#FFFDF8] py-2 pl-8 pr-3 text-right text-sm tabular-nums text-foreground placeholder:text-muted-foreground",
+                "h-11 w-full rounded-xl border bg-popover py-2 pl-8 pr-3 text-right text-sm tabular-nums text-foreground placeholder:text-muted-foreground",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
                 "disabled:cursor-not-allowed disabled:opacity-60",
-                fieldErrors.amount ? "border-destructive/50" : "border-[#E8DFCC]",
+                fieldErrors.amount ? "border-destructive/50" : "border-border",
               )}
             />
           </div>
@@ -294,7 +294,7 @@ export function ExpenseInlineForm({
             Category
           </label>
           {categories.length === 0 ? (
-            <div className="flex h-11 items-center rounded-xl border border-[#E8DFCC] bg-[#FFFDF8] px-3 text-sm text-muted-foreground">
+            <div className="flex h-11 items-center rounded-xl border border-border bg-popover px-3 text-sm text-muted-foreground">
               No categories ·{" "}
               <Link to="/budget" className="ml-1 font-medium text-primary underline-offset-2 hover:underline">
                 Set budgets
@@ -313,14 +313,14 @@ export function ExpenseInlineForm({
                 aria-invalid={Boolean(fieldErrors.category)}
                 aria-describedby={fieldErrors.category ? categoryErrorId : undefined}
                 className={cn(
-                  "h-11 w-full appearance-none rounded-xl border bg-[#FFFDF8] py-2 pl-10 pr-9 text-sm text-foreground",
+                  "h-11 w-full appearance-none rounded-xl border bg-popover py-2 pl-10 pr-9 text-sm text-foreground",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
                   "disabled:cursor-not-allowed disabled:opacity-60",
                   fieldErrors.category
                     ? "border-destructive/50"
                     : category
-                      ? "border-[#6E4E91]/45"
-                      : "border-[#E8DFCC]",
+                      ? "border-primary/45"
+                      : "border-border",
                 )}
               >
                 <option value="" disabled>
@@ -343,7 +343,7 @@ export function ExpenseInlineForm({
                     iconClassName="h-3.5 w-3.5"
                   />
                 ) : (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#F3EBE0] text-[10px] text-muted-foreground">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-[10px] text-muted-foreground">
                     ?
                   </span>
                 )}
@@ -377,10 +377,10 @@ export function ExpenseInlineForm({
             aria-invalid={Boolean(fieldErrors.date)}
             aria-describedby={fieldErrors.date ? dateErrorId : undefined}
             className={cn(
-              "h-11 w-full rounded-xl border bg-[#FFFDF8] px-3 text-sm tabular-nums text-foreground",
+              "h-11 w-full rounded-xl border bg-popover px-3 text-sm tabular-nums text-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
               "disabled:cursor-not-allowed disabled:opacity-60",
-              fieldErrors.date ? "border-destructive/50" : "border-[#E8DFCC]",
+              fieldErrors.date ? "border-destructive/50" : "border-border",
             )}
           />
           {fieldErrors.date ? (
@@ -401,7 +401,7 @@ export function ExpenseInlineForm({
         <Button
           type="submit"
           disabled={isPending || !isValid || categories.length === 0}
-          className="h-11 w-full rounded-xl bg-[#6E4E91] px-5 text-sm font-semibold hover:bg-[#5B3F7A] sm:w-auto disabled:opacity-60"
+          className="h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold hover:bg-primary/90 sm:w-auto disabled:opacity-60"
         >
           {isPending ? "Saving…" : isEditing ? "Save changes" : "Save expense"}
         </Button>
@@ -410,7 +410,7 @@ export function ExpenseInlineForm({
           variant="outline"
           disabled={isPending}
           onClick={onCancel}
-          className="h-11 w-full rounded-xl border-[#E8DFCC] bg-[#FFFDF8] px-5 text-sm font-semibold text-foreground hover:bg-[#F6F0E4] sm:w-auto"
+          className="h-11 w-full rounded-xl border-border bg-popover px-5 text-sm font-semibold text-foreground hover:bg-card sm:w-auto"
         >
           Cancel
         </Button>

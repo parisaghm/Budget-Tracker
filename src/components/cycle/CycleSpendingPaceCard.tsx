@@ -16,7 +16,7 @@ export function CycleSpendingPaceCard({
   const explanation = buildPaceExplanation(pace, currency);
 
   return (
-    <section className="card-dashboard space-y-5 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6">
+    <section className="card-dashboard space-y-5 rounded-[1.5rem] border border-border p-5 sm:p-6">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <h2 className="font-display text-xl font-semibold text-foreground">
           Spending pace
@@ -31,7 +31,7 @@ export function CycleSpendingPaceCard({
           label={`${progress.elapsedPercentDisplay}% · day ${progress.cycleDay} of ${progress.cycleLength}`}
           caption="Cycle time gone"
           percent={progress.elapsedPercentDisplay}
-          barClass="bg-[#D9D0C3]"
+          barClass="bg-muted"
         />
         <ProgressRow
           label={
@@ -72,7 +72,7 @@ export function CycleSpendingPaceCard({
       <CumulativeCycleChart pace={pace} currency={currency} />
 
       {explanation ? (
-        <p className="rounded-2xl bg-[#F6F0E4]/80 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+        <p className="rounded-2xl bg-card/80 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
           {explanation}
         </p>
       ) : null}

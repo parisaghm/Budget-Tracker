@@ -90,17 +90,17 @@ const HERO_HEALTH_UI: Record<
   on_track: {
     pillClass: "hero-health-pill--on_track",
     icon: CircleCheck,
-    iconClass: "text-[#6B7F5E]",
+    iconClass: "text-success",
   },
   tight: {
     pillClass: "hero-health-pill--tight",
     icon: Gauge,
-    iconClass: "text-[#B07A3B]",
+    iconClass: "text-warning",
   },
   action_needed: {
     pillClass: "hero-health-pill--action_needed",
     icon: AlertCircle,
-    iconClass: "text-[#9C5A56]",
+    iconClass: "text-destructive",
   },
 };
 
@@ -204,18 +204,18 @@ function HeroHealthBlock({ status }: { status: HeroHealthStatus }) {
         <Icon className={cn("h-3.5 w-3.5 shrink-0", iconClass)} aria-hidden />
         {status.title}
       </span>
-      <p className="hero-safe-description hero-safe-description--animated text-sm leading-relaxed text-[#746A5D]">
+      <p className="hero-safe-description hero-safe-description--animated text-sm leading-relaxed text-muted-foreground">
         {status.description}
       </p>
     </div>
   );
 }
 
-const HERO_METRIC_ACCENTS: Record<string, { bg: string; color: string }> = {
-  income: { bg: "#EFE7F7", color: "#6E4E91" },
-  spent: { bg: "hsl(96 22% 88%)", color: "#4A5C40" },
-  saved: { bg: "hsl(3 29% 92%)", color: "#7A4542" },
-  bills: { bg: "hsl(269 30% 92%)", color: "#5C4580" },
+const HERO_METRIC_ACCENTS: Record<string, string> = {
+  income: "hero-metric-icon--income",
+  spent: "hero-metric-icon--spent",
+  saved: "hero-metric-icon--saved",
+  bills: "hero-metric-icon--bills",
 };
 
 function WalletWarningIllustration() {
@@ -249,16 +249,16 @@ function NegativeActionPanel({
     <div className="hero-action-panel" role="region" aria-label="Recommended actions to get back on track">
       <div className="hero-action-panel__main">
         <div className="hero-action-panel__alert" aria-hidden>
-          <AlertCircle className="h-4 w-4 text-[#9C5A56]" />
+          <AlertCircle className="h-4 w-4 text-destructive" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-snug text-[#2B221B]">
+          <p className="text-sm font-semibold leading-snug text-foreground">
             You&apos;re {formatMoney(overAmountCents, currency)} over your available budget this cycle.
           </p>
-          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#9C5A56]">
+          <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-destructive">
             Recommended
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-[#746A5D]">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
             {canReduceSavings
               ? `Reduce this month's savings by ${formatMoney(recommendedReductionCents, currency)} to get back on track.`
               : "Review your bills and discretionary spending to get back on track."}
@@ -267,7 +267,7 @@ function NegativeActionPanel({
             <button
               type="button"
               onClick={onAdjustSavings}
-              className="hero-action-panel__cta mt-3 inline-flex items-center justify-center rounded-full bg-[#6E4E91] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5C4580] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E4E91]/40"
+              className="hero-action-panel__cta mt-3 inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             >
               Adjust savings
             </button>
@@ -278,7 +278,7 @@ function NegativeActionPanel({
       <div className="hero-action-panel__divider" aria-hidden />
 
       <div className="hero-action-panel__options">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#746A5D]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Other options
         </p>
         <ul className="mt-2 space-y-1">
@@ -287,11 +287,11 @@ function NegativeActionPanel({
               to="/bills"
               className="hero-action-panel__option"
             >
-              <Wallet className="h-4 w-4 shrink-0 text-[#6E4E91]" aria-hidden />
-              <span className="min-w-0 flex-1 text-sm font-medium text-[#2B221B]">
+              <Wallet className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
                 Review upcoming bill
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-[#746A5D]/60" aria-hidden />
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
             </Link>
           </li>
           <li>
@@ -299,11 +299,11 @@ function NegativeActionPanel({
               to="/expenses"
               className="hero-action-panel__option"
             >
-              <Shield className="h-4 w-4 shrink-0 text-[#6E4E91]" aria-hidden />
-              <span className="min-w-0 flex-1 text-sm font-medium text-[#2B221B]">
+              <Shield className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+              <span className="min-w-0 flex-1 text-sm font-medium text-foreground">
                 Reduce discretionary spending
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-[#746A5D]/60" aria-hidden />
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
             </Link>
           </li>
         </ul>
@@ -332,10 +332,7 @@ function HeroMetricCell({
   const accent = HERO_METRIC_ACCENTS[accentKey];
   return (
     <div className="hero-metric-cell">
-      <div
-        className="hero-metric-icon"
-        style={{ backgroundColor: accent.bg, color: accent.color }}
-      >
+      <div className={cn("hero-metric-icon", accent)}>
         <Icon aria-hidden />
       </div>
       <div className="min-w-0">
@@ -452,10 +449,10 @@ export function MonthPlanCard({
 
   const headerStatusDotClass =
     heroHealth?.level === "tight"
-      ? "bg-[#B07A3B]"
+      ? "bg-warning"
       : heroHealth?.level === "action_needed"
-        ? "bg-[#9C5A56]"
-        : "bg-[#6B7F5E]";
+        ? "bg-destructive"
+        : "bg-success";
 
   const compactHeroMetrics = (
       <div className="hero-metric-cells">
@@ -543,8 +540,8 @@ export function MonthPlanCard({
               {heroHealth ? <HeroHealthBlock status={heroHealth} /> : null}
 
               {hasIncomeForCycle && dailyPaceCents > 0 ? (
-                <p className="mt-2.5 flex items-center gap-1.5 text-sm font-medium text-[#746A5D]">
-                  <LineChart className="h-3.5 w-3.5 shrink-0 text-[#6E4E91]" aria-hidden />
+                <p className="mt-2.5 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                  <LineChart className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
                   <span className="money-display-md text-foreground">
                     {formatMoney(dailyPaceCents, currency)}
                   </span>
@@ -555,7 +552,7 @@ export function MonthPlanCard({
               {!hasIncomeForCycle ? (
                 <div className="mt-3 space-y-3">
                   <p className="text-base font-semibold text-foreground">Add your income</p>
-                  <p className="text-sm leading-relaxed text-[#746A5D]">
+                  <p className="text-sm leading-relaxed text-muted-foreground">
                     Enter the income received during this cycle to calculate your Safe to Spend.
                   </p>
                   {onAddIncome ? (

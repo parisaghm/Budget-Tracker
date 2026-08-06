@@ -42,18 +42,18 @@ export function WeekPaceCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-[1.125rem]">
+          <h2 className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-foreground sm:text-[1.125rem]">
             Your week so far
           </h2>
           {paceLabel ? (
-            <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D] sm:text-sm">{paceLabel}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground sm:text-sm">{paceLabel}</p>
           ) : null}
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#746A5D]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Spent
           </p>
-          <p className="money-display-md mt-1 text-[1.25rem] leading-none text-[#1A1411] sm:mt-1.5 sm:text-[1.45rem]">
+          <p className="money-display-md mt-1 text-[1.25rem] leading-none text-foreground sm:mt-1.5 sm:text-[1.45rem]">
             <AnimatedMoney
               cents={spentThisWeekCents}
               currency={currency}
@@ -79,7 +79,7 @@ export function WeekPaceCard({
               <p
                 className={cn(
                   "money-amount-sm hidden h-4 text-[10px] leading-none sm:block sm:text-[11px]",
-                  day.isToday ? "text-[#6E4E91]" : "text-[#2B221B]/80",
+                  day.isToday ? "text-primary" : "text-foreground/80",
                 )}
               >
                 {hasAmount ? formatMoney(amount, currency) : ""}
@@ -90,7 +90,7 @@ export function WeekPaceCard({
                     className={cn(
                       "week-pace-bar-spent absolute inset-x-0 bottom-0 rounded-2xl",
                       !prefersReducedMotion && "week-pace-bar-spent--animate",
-                      day.isToday && "ring-1 ring-[#6E4E91]/25",
+                      day.isToday && "ring-1 ring-primary/25",
                     )}
                     style={
                       prefersReducedMotion
@@ -107,7 +107,7 @@ export function WeekPaceCard({
               <p
                 className={cn(
                   "week-pace-day-label text-[11px] font-medium sm:text-xs sm:font-normal",
-                  day.isToday ? "text-[#6E4E91]" : "text-[#746A5D]",
+                  day.isToday ? "text-primary" : "text-muted-foreground",
                 )}
               >
                 <span className="sm:hidden">{mobileDayLabel}</span>
@@ -122,11 +122,11 @@ export function WeekPaceCard({
         <Leaf
           className={cn(
             "mt-0.5 h-4 w-4 shrink-0",
-            positiveInsight ? "text-[#6B7F5E]" : "text-[#6E4E91]/70",
+            positiveInsight ? "text-success" : "text-primary/70",
           )}
           aria-hidden
         />
-        <p className={cn("text-sm leading-relaxed", positiveInsight ? "text-[#2B221B]" : "text-[#746A5D]")}>
+        <p className={cn("text-sm leading-relaxed", positiveInsight ? "text-foreground" : "text-muted-foreground")}>
           {insightLine}
           {positiveInsight ? " Keep it up!" : null}
         </p>

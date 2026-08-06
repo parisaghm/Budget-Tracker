@@ -67,6 +67,7 @@ export default function Dashboard() {
     setCurrentMonth,
     getMonthData,
     budget,
+    displayCurrency,
     expenses,
     totalSpentCents,
     totalIncomeThisCycleCents,
@@ -157,7 +158,7 @@ export default function Dashboard() {
     closedCycles.length,
   ]);
 
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
   const hasAnyRecurringBills = recurringBills.length > 0;
 
   const { previousMonthKey } = usePreviousMonthLeftover({

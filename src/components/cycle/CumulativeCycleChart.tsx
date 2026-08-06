@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { formatMoney } from "@/utils/money";
+import { getChartTheme } from "@/utils/chartTheme";
 import type { PaceModel } from "@/utils/cycleReviewModel";
 
 export function CumulativeCycleChart({
@@ -20,6 +21,7 @@ export function CumulativeCycleChart({
   pace: PaceModel;
   currency: string;
 }) {
+  const theme = getChartTheme();
   const data = pace.series.points.map((p) => ({
     dateYmd: p.dateYmd,
     dayIndex: p.dayIndex,
@@ -56,21 +58,21 @@ export function CumulativeCycleChart({
           <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="cycleActualFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6E4E91" stopOpacity={0.25} />
-                <stop offset="100%" stopColor="#6E4E91" stopOpacity={0} />
+                <stop offset="0%" stopColor={theme.primary} stopOpacity={0.25} />
+                <stop offset="100%" stopColor={theme.primary} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#E8DFCC" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke={theme.grid} strokeDasharray="3 3" vertical={false} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: "#8A7F72" }}
+              tick={{ fontSize: 11, fill: theme.axis }}
               tickLine={false}
               axisLine={false}
               interval="preserveStartEnd"
               minTickGap={28}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: "#8A7F72" }}
+              tick={{ fontSize: 11, fill: theme.axis }}
               tickLine={false}
               axisLine={false}
               width={56}
@@ -79,8 +81,9 @@ export function CumulativeCycleChart({
             <Tooltip
               contentStyle={{
                 borderRadius: 12,
-                borderColor: "#E8DFCC",
-                background: "#FFFDF8",
+                borderColor: theme.tooltipBorder,
+                background: theme.tooltipBg,
+                color: theme.tooltipText,
                 fontSize: 12,
               }}
               formatter={(value: number, name: string) => [
@@ -92,12 +95,12 @@ export function CumulativeCycleChart({
             {planCents != null ? (
               <ReferenceLine
                 y={planCents}
-                stroke="#C4A35A"
+                stroke={theme.secondary}
                 strokeDasharray="4 4"
                 label={{
                   value: "PLAN",
                   position: "insideTopRight",
-                  fill: "#8A7F72",
+                  fill: theme.axis,
                   fontSize: 10,
                 }}
               />
@@ -105,12 +108,12 @@ export function CumulativeCycleChart({
             {todayPoint ? (
               <ReferenceLine
                 x={format(parseISO(todayPoint.dateYmd), "MMM d")}
-                stroke="#6E4E91"
+                stroke={theme.primary}
                 strokeDasharray="3 3"
                 label={{
                   value: `TODAY · DAY ${todayPoint.dayIndex}`,
                   position: "insideTopLeft",
-                  fill: "#6E4E91",
+                  fill: theme.primary,
                   fontSize: 10,
                 }}
               />
@@ -118,7 +121,7 @@ export function CumulativeCycleChart({
             <Area
               type="monotone"
               dataKey="actual"
-              stroke="#6E4E91"
+              stroke={theme.primary}
               strokeWidth={2}
               fill="url(#cycleActualFill)"
               connectNulls={false}
@@ -127,7 +130,7 @@ export function CumulativeCycleChart({
             <Line
               type="monotone"
               dataKey="projected"
-              stroke="#6E4E91"
+              stroke={theme.primary}
               strokeWidth={2}
               strokeDasharray="6 4"
               dot={false}

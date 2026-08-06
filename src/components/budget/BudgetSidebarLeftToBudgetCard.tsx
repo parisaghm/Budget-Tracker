@@ -69,7 +69,7 @@ export function BudgetSidebarLeftToBudgetCard({
           <button
             type="button"
             onClick={onAssignMoney}
-            className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-primary transition-opacity hover:opacity-90"
+            className="shrink-0 rounded-full bg-primary-foreground px-3.5 py-1.5 text-xs font-semibold text-primary transition-opacity hover:opacity-90"
           >
             Assign money
           </button>
@@ -78,7 +78,7 @@ export function BudgetSidebarLeftToBudgetCard({
           <button
             type="button"
             onClick={onAdjustIncome}
-            className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-primary transition-opacity hover:opacity-90"
+            className="shrink-0 rounded-full bg-primary-foreground px-3.5 py-1.5 text-xs font-semibold text-primary transition-opacity hover:opacity-90"
           >
             Adjust income
           </button>

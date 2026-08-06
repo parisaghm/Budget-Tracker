@@ -36,6 +36,7 @@ export default function CyclePage() {
     currentMonth,
     setCurrentMonth,
     budget,
+    displayCurrency,
     expenses,
     allExpenses,
     totalSpentCents,
@@ -59,7 +60,7 @@ export default function CyclePage() {
 
   const userId = user?.id ?? (isDemoMode ? "demo" : undefined);
   const { adjustments } = useBudgetAdjustments(userId, currentMonth);
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
   const todayYmd = format(new Date(), "yyyy-MM-dd");
 
   const [showAllFinished, setShowAllFinished] = useState(false);
@@ -238,7 +239,7 @@ export default function CyclePage() {
           className="flex-1 space-y-4 pb-mobile-nav pr-mobile-fab pt-4 sm:space-y-5 sm:pt-5 md:pb-10 lg:pt-6"
         >
           {!selectedCycle ? (
-            <section className="card-dashboard rounded-[1.5rem] border border-[#E8DFCC] p-6">
+            <section className="card-dashboard rounded-[1.5rem] border border-border p-6">
               <h1 className="font-display text-xl font-semibold">Cycle review</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 No budget cycle is selected yet. Set up your income cycle to start

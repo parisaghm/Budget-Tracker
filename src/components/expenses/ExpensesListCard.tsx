@@ -253,7 +253,7 @@ export function ExpensesListCard({
     <>
       <section
         className={cn(
-          "card-dashboard space-y-5 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6",
+          "card-dashboard space-y-5 rounded-[1.5rem] border border-border p-5 sm:p-6",
           className,
         )}
       >

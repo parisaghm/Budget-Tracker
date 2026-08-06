@@ -36,6 +36,7 @@ export default function WeeklyReviewPage() {
   const {
     getMonthData,
     budget,
+    displayCurrency,
     recurringBills,
     savingsGoals,
     safeToSpendCents,
@@ -78,7 +79,7 @@ export default function WeeklyReviewPage() {
   ]);
 
   const hasEnoughData = weeklyData.totalSpentCents > 0 || weeklyData.upcomingBills.length > 0 || weeklyData.goalChecks.length > 0;
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
   const status = statusConfig[weeklyData.status];
   const StatusIcon = status.icon;
   const budgetProgress = weeklyData.weeklyBudgetCents > 0

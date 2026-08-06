@@ -64,22 +64,22 @@ export function UpcomingBillsCard({
         <div className="min-w-0">
           <h2
             id="upcoming-bills-heading"
-            className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411] sm:text-[1.125rem]"
+            className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-foreground sm:text-[1.125rem]"
           >
             Upcoming bills
           </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-[#746A5D]">{subtitle}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{subtitle}</p>
         </div>
         <Link
           to="/bills"
-          className="touch-hit shrink-0 text-sm font-medium text-[#6E4E91] transition-colors hover:text-[#4A3463]"
+          className="touch-hit shrink-0 text-sm font-medium text-primary transition-colors hover:text-primary"
         >
           All bills →
         </Link>
       </div>
 
       {preview.length === 0 ? (
-        <p className="mt-5 text-sm text-[#746A5D]">
+        <p className="mt-5 text-sm text-muted-foreground">
           {!hasAnyRecurringBills
             ? "No upcoming bills yet."
             : "No unpaid bills scheduled right now."}
@@ -95,12 +95,12 @@ export function UpcomingBillsCard({
                     categoryValue={bill.category}
                     label={bill.name}
                     size="sm"
-                    className="bg-[#EFE7F7]"
-                    iconClassName="text-[#6E4E91]"
+                    className="bg-accent"
+                    iconClassName="text-primary"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#1A1411]">{bill.name}</p>
-                    <p className="text-xs leading-relaxed text-[#746A5D]">
+                    <p className="truncate text-sm font-medium text-foreground">{bill.name}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
                       {timingLabel(days)} · {formatBillDueDateLabel(bill.nextDueDate)}
                     </p>
                   </div>
@@ -119,7 +119,7 @@ export function UpcomingBillsCard({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-7 rounded-full border-[#E8DFCC] bg-[#FFFDF8] px-2.5 text-xs text-[#2B221B] hover:bg-[#EFE7F7] hover:text-[#4A3463]"
+                        className="h-7 rounded-full border-border bg-popover px-2.5 text-xs text-foreground hover:bg-accent hover:text-primary"
                         disabled={markingBillId === bill.id}
                         onClick={() => onMarkPaid(bill)}
                       >
@@ -137,15 +137,15 @@ export function UpcomingBillsCard({
       {hasAnyRecurringBills ? (
         <div className="bills-tip-box">
           <div className="flex min-w-0 items-start gap-2.5">
-            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-[#B07A3B]" aria-hidden />
-            <p className="text-sm leading-relaxed text-[#2B221B]">
+            <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden />
+            <p className="text-sm leading-relaxed text-foreground">
               <span className="font-medium">Tip:</span> Pay early and keep your future self relaxed.
             </p>
           </div>
           <Button
             asChild
             variant="outline"
-            className="shrink-0 rounded-full border-[#E8DFCC] bg-[#FFFDF8] text-[#2B221B] hover:bg-[#EFE7F7] hover:text-[#4A3463]"
+            className="shrink-0 rounded-full border-border bg-popover text-foreground hover:bg-accent hover:text-primary"
           >
             <Link to="/bills">See all bills</Link>
           </Button>

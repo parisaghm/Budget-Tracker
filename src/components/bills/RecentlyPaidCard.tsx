@@ -19,11 +19,11 @@ export function RecentlyPaidCard({ items, currency, maxVisible = 6 }: RecentlyPa
       <div className="flex items-baseline justify-between gap-3">
         <h2
           id="recently-paid-heading"
-          className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411]"
+          className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-foreground"
         >
           Recently paid
         </h2>
-        <p className="text-xs text-[#9C9284]">Last 30 days</p>
+        <p className="text-xs text-muted-foreground">Last 30 days</p>
       </div>
 
       {visible.length === 0 ? (

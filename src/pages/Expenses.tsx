@@ -19,6 +19,7 @@ export default function ExpensesPage() {
     currentMonth,
     setCurrentMonth,
     budget,
+    displayCurrency,
     expenses,
     totalSpentCents,
     addExpense,
@@ -36,7 +37,7 @@ export default function ExpensesPage() {
   const [showBillGeneratedOnly, setShowBillGeneratedOnly] = useState(false);
   const [showUncategorisedOnly, setShowUncategorisedOnly] = useState(false);
 
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

@@ -33,7 +33,7 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     line-height: 1.35;
-    color: #746a5d;
+    color: hsl(var(--muted-foreground));
   }
 
   .budget-page .budget-mobile-header__month {

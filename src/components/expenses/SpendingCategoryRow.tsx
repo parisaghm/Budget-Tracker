@@ -23,8 +23,8 @@ export function SpendingCategoryRow({
       aria-pressed={selected}
       className={cn(
         "flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition-colors",
-        "hover:bg-[#F6F0E4]/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-        selected && "bg-[#EFE7F7] ring-1 ring-[#6E4E91]/25",
+        "hover:bg-card/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        selected && "bg-accent ring-1 ring-primary/25",
       )}
     >
       <span

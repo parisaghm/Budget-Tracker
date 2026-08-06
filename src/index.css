@@ -138,6 +138,20 @@
     /* Shared authenticated page shell width + horizontal padding */
     --app-content-max-width: 1350px;
     --app-content-pad-x: 1rem; /* 16px mobile */
+
+    --surface-inset: hsl(34 100% 97% / 0.85);
+    --surface-nested: 40 50% 96%;
+
+    /* Chart theme tokens */
+    --chart-grid: 41 38% 86%;
+    --chart-axis: 32 9% 41%;
+    --chart-primary: 269 30% 44%;
+    --chart-secondary: 32 50% 46%;
+    --chart-tooltip-bg: 48 100% 99%;
+    --chart-tooltip-border: 41 38% 86%;
+    --chart-tooltip-text: 26 23% 14%;
+
+    color-scheme: light;
   }
 
   @media (min-width: 640px) {
@@ -159,26 +173,29 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     --background: 260 14% 9%;
     --foreground: 38 20% 94%;
 
     --card: 260 12% 12%;
     --card-foreground: 38 20% 94%;
 
-    --popover: 260 12% 12%;
+    --popover: 260 12% 13%;
     --popover-foreground: 38 20% 94%;
 
     --primary: 278 28% 62%;
+    --primary-deep: 278 22% 52%;
     --primary-foreground: 260 14% 9%;
 
     --secondary: 260 10% 16%;
     --secondary-foreground: 38 20% 94%;
 
     --muted: 260 10% 16%;
-    --muted-foreground: 260 8% 58%;
+    --muted-foreground: 260 8% 70%;
 
-    --accent: 32 46% 58%;
-    --accent-foreground: 32 50% 12%;
+    --accent: 278 20% 18%;
+    --accent-foreground: 278 28% 72%;
 
     --destructive: 8 52% 52%;
     --destructive-foreground: 0 0% 100%;
@@ -193,15 +210,75 @@
     --input: 260 10% 20%;
     --ring: 278 28% 62%;
 
+    --sidebar-background: 260 14% 8%;
+    --sidebar-foreground: 38 20% 94%;
+    --sidebar-primary: 278 28% 62%;
+    --sidebar-primary-foreground: 260 14% 9%;
+    --sidebar-accent: 260 10% 16%;
+    --sidebar-accent-foreground: 38 20% 94%;
+    --sidebar-border: 260 10% 20%;
+    --sidebar-ring: 278 28% 62%;
+
     --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.22);
     --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.32), 0 2px 4px -2px hsl(0 0% 0% / 0.18);
     --shadow-lg: 0 12px 32px -4px hsl(0 0% 0% / 0.42), 0 4px 8px -4px hsl(0 0% 0% / 0.22);
+    --shadow-hero:
+      0 1px 2px 0 hsl(0 0% 0% / 0.2),
+      0 10px 28px -8px hsl(278 28% 62% / 0.18),
+      0 22px 48px -18px hsl(0 0% 0% / 0.35);
     --shadow-glow: 0 0 28px hsl(278 28% 62% / 0.18);
+    --shadow-soft:
+      0 1px 2px 0 hsl(0 0% 0% / 0.18),
+      0 6px 20px -8px hsl(0 0% 0% / 0.28);
 
     --gradient-primary: linear-gradient(135deg, hsl(278 28% 62%), hsl(278 22% 52%));
     --gradient-accent: linear-gradient(135deg, hsl(32 46% 58%), hsl(28 50% 52%));
-    --gradient-card: linear-gradient(180deg, hsl(260 12% 12%), hsl(260 12% 10%));
+    --gradient-card: linear-gradient(180deg, hsl(260 12% 13%) 0%, hsl(260 12% 10%) 100%);
     --gradient-plan: linear-gradient(135deg, hsl(260 12% 12%) 0%, hsl(278 14% 16%) 55%, hsl(260 12% 11%) 100%);
+    --gradient-plan-hero: linear-gradient(
+      128deg,
+      hsl(260 12% 13%) 0%,
+      hsl(260 12% 12%) 28%,
+      hsl(270 14% 14%) 55%,
+      hsl(278 16% 15%) 100%
+    );
+    --gradient-plan-hero-wash:
+      radial-gradient(ellipse 90% 65% at 4% -6%, hsl(278 28% 62% / 0.12), transparent 52%),
+      radial-gradient(ellipse 70% 60% at 100% 110%, hsl(278 28% 62% / 0.16), transparent 48%),
+      radial-gradient(ellipse 55% 45% at 72% 8%, hsl(270 20% 20% / 0.55), transparent 42%),
+      radial-gradient(ellipse 40% 35% at 24% 88%, hsl(260 12% 18% / 0.4), transparent 50%);
+    --gradient-plan-hero-ambient:
+      radial-gradient(ellipse 78% 58% at 2% -2%, hsl(278 28% 62% / 0.14), transparent 58%),
+      radial-gradient(ellipse 68% 52% at 98% 4%, hsl(270 22% 22% / 0.35), transparent 55%),
+      radial-gradient(ellipse 55% 42% at 88% 18%, hsl(278 20% 18% / 0.28), transparent 48%),
+      radial-gradient(ellipse 50% 38% at 12% 92%, hsl(260 10% 16% / 0.3), transparent 52%);
+    --gradient-shell: linear-gradient(
+      180deg,
+      hsl(260 14% 10%) 0%,
+      hsl(260 12% 9%) 72%,
+      hsl(270 14% 11%) 100%
+    );
+
+    --segment-bills: 278 28% 62%;
+    --segment-goals: 278 22% 32%;
+    --segment-spent: 28 58% 54%;
+    --segment-safe: 152 30% 44%;
+
+    --page-glow:
+      radial-gradient(1000px 640px at 6% -8%, hsl(278 28% 62% / 0.08), transparent 58%),
+      radial-gradient(900px 560px at 94% 12%, hsl(270 20% 30% / 0.12), transparent 55%),
+      radial-gradient(800px 500px at 50% 100%, hsl(260 12% 6% / 0.35), transparent 50%);
+
+    --surface-inset: hsl(38 20% 94% / 0.06);
+    --surface-nested: 260 10% 16%;
+
+    --chart-grid: 260 10% 22%;
+    --chart-axis: 260 8% 62%;
+    --chart-primary: 278 28% 62%;
+    --chart-secondary: 28 58% 54%;
+    --chart-tooltip-bg: 260 12% 14%;
+    --chart-tooltip-border: 260 10% 22%;
+    --chart-tooltip-text: 38 20% 94%;
   }
 }
 
@@ -266,36 +343,29 @@ html {
   /* Surfaces — hero (plan) > elevated > secondary (quieter support cards) */
   .card-elevated {
     @apply rounded-[1.875rem] border;
-    border-color: #e8dfcc;
-    background: linear-gradient(180deg, #fffdf8 0%, #f6f0e4 100%);
+    border-color: hsl(var(--border));
+    background: var(--gradient-card);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 1px 2px 0 hsl(26 23% 14% / 0.034),
-      0 8px 22px -10px hsl(270 32% 36% / 0.07);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-sm);
   }
 
   .card-secondary {
     @apply rounded-[1.875rem] border;
-    border-color: #e8dfcc;
-    background: linear-gradient(180deg, #fffdf8 0%, #f6f0e4 100%);
+    border-color: hsl(var(--border));
+    background: var(--gradient-card);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 1px 2px 0 hsl(26 23% 14% / 0.034),
-      0 8px 22px -10px hsl(270 32% 36% / 0.07);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-sm);
   }
 
   /* Mid-tier — more presence than secondary, quieter than hero */
   .card-support {
     @apply relative overflow-hidden rounded-[1.75rem] border;
     border-color: hsl(var(--primary) / 0.11);
-    background: linear-gradient(
-      168deg,
-      hsl(270 38% 94%) 0%,
-      hsl(40 54% 93%) 45%,
-      hsl(40 52% 92%) 100%
-    );
+    background: var(--gradient-plan);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.65),
+      inset 0 1px 0 0 var(--surface-inset),
       var(--shadow-soft);
   }
 
@@ -313,52 +383,47 @@ html {
 
   .card-next-step.dashboard-card-hover:hover {
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 2px 4px 0 hsl(26 23% 14% / 0.04),
-      0 12px 32px -10px hsl(270 32% 36% / 0.11);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-md);
   }
 
   .card-dashboard.dashboard-card-hover:hover {
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 2px 4px 0 hsl(26 23% 14% / 0.04),
-      0 12px 30px -10px hsl(270 32% 36% / 0.1);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-md);
   }
 
   .card-plan-hero.dashboard-card-hover:hover {
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.92),
-      inset 0 -1px 0 0 hsl(41 38% 86% / 0.35),
-      0 2px 4px 0 hsl(26 23% 14% / 0.042),
-      0 10px 24px -6px hsl(270 32% 36% / 0.09),
-      0 18px 42px -14px hsl(269 30% 44% / 0.12);
+      inset 0 1px 0 0 var(--surface-inset),
+      inset 0 -1px 0 0 hsl(var(--border) / 0.35),
+      var(--shadow-hero);
   }
 
   .card-next-step {
     @apply relative overflow-hidden rounded-[1.875rem] border;
-    border-color: #e8dfcc;
-    background: linear-gradient(180deg, #fffdf8 0%, #f6f0e4 100%);
+    border-color: hsl(var(--border));
+    background: var(--gradient-card);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 1px 2px 0 hsl(26 23% 14% / 0.034),
-      0 8px 24px -10px hsl(270 32% 36% / 0.08);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-sm);
   }
 
   .card-next-step .text-muted-foreground {
-    color: hsl(32 10% 38%);
+    color: hsl(var(--muted-foreground));
   }
 
   .label-caps-next-step {
     @apply font-sans text-[10px] font-bold uppercase tracking-[0.2em];
-    color: #6e4e91;
+    color: hsl(var(--primary));
   }
 
   .card-next-step-action {
     @apply flex w-full items-center gap-3 border px-4 py-3 text-left;
     border-radius: 16px;
-    background: #fffdf8;
-    border-color: #e8dfcc;
-    box-shadow: 0 1px 2px 0 hsl(26 23% 14% / 0.035);
+    background: hsl(var(--popover));
+    border-color: hsl(var(--border));
+    box-shadow: var(--shadow-sm);
     transition:
       background-color 170ms ease-out,
       border-color 170ms ease-out,
@@ -366,9 +431,9 @@ html {
   }
 
   .card-next-step-action:hover:not(:disabled) {
-    background: #f8f3fc;
-    border-color: #d8c8eb;
-    box-shadow: 0 1px 3px 0 hsl(269 30% 44% / 0.06);
+    background: hsl(var(--accent));
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 1px 3px 0 hsl(var(--primary) / 0.06);
   }
 
   .card-next-step-action-chevron {
@@ -380,34 +445,34 @@ html {
   }
 
   .card-next-step-action:focus-visible {
-    outline: 2px solid rgba(110, 78, 145, 0.35);
+    outline: 2px solid hsl(var(--primary) / 0.35);
     outline-offset: 2px;
   }
 
   .card-next-step-icon {
     @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-xl;
-    background: #efe7f7;
-    color: #6e4e91;
+    background: hsl(var(--accent));
+    color: hsl(var(--primary));
   }
 
   .badge-next-step-suggested {
     @apply inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em];
-    background: #efe7f7;
-    color: #6e4e91;
+    background: hsl(var(--accent));
+    color: hsl(var(--primary));
   }
 
   .link-next-step-muted {
     @apply text-xs font-normal transition-colors;
-    color: rgba(110, 78, 145, 0.72);
+    color: hsl(var(--primary) / 0.72);
   }
 
   .link-next-step-muted:hover:not(:disabled) {
-    color: #6e4e91;
+    color: hsl(var(--primary));
   }
 
   .btn-next-step-primary {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition-[transform,opacity] duration-200 ease-out;
-    background: #6e4e91;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-primary-foreground transition-[transform,opacity] duration-200 ease-out;
+    background: hsl(var(--primary));
   }
 
   .btn-next-step-primary:hover {
@@ -424,7 +489,7 @@ html {
     @apply relative overflow-hidden rounded-[1.75rem] border border-primary/10;
     background: var(--gradient-plan);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.75),
+      inset 0 1px 0 0 var(--surface-inset),
       var(--shadow-md);
   }
 
@@ -453,15 +518,13 @@ html {
 
   .card-plan-hero {
     border-radius: 1.875rem;
-    border-color: #E8DFCC;
-    background-color: #F6F0E4;
+    border-color: hsl(var(--border));
+    background-color: hsl(var(--card));
     background-image: var(--gradient-plan-hero);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.92),
-      inset 0 -1px 0 0 hsl(41 38% 86% / 0.35),
-      0 1px 2px 0 hsl(26 23% 14% / 0.038),
-      0 6px 18px -6px hsl(270 32% 36% / 0.07),
-      0 14px 36px -14px hsl(269 30% 44% / 0.09);
+      inset 0 1px 0 0 var(--surface-inset),
+      inset 0 -1px 0 0 hsl(var(--border) / 0.35),
+      var(--shadow-md);
   }
 
   .card-plan-hero::before {
@@ -470,24 +533,17 @@ html {
   }
 
   .card-plan-hero::after {
-    box-shadow: inset 0 1px 0 0 hsl(34 100% 97% / 0.45);
+    box-shadow: inset 0 1px 0 0 var(--surface-inset);
   }
 
   /* Tighter finances — calmer hero, still warm lifted surface */
   .card-plan-tight {
-    background-color: #F6F0E4;
-    background-image: linear-gradient(
-      128deg,
-      #F8F2E8 0%,
-      #F6F0E4 45%,
-      #F2EBE6 72%,
-      #EFE9EE 100%
-    );
-    border-color: #E8DFCC;
+    background-color: hsl(var(--card));
+    background-image: var(--gradient-plan-hero);
+    border-color: hsl(var(--border));
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 1px 2px 0 hsl(26 23% 14% / 0.034),
-      0 5px 14px -6px hsl(270 32% 36% / 0.05);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-sm);
   }
 
   .card-plan-tight::before {
@@ -495,14 +551,9 @@ html {
   }
 
   .card-plan-supportive {
-    background-color: #F6F0E4;
-    background-image: linear-gradient(
-      125deg,
-      #FAF4E8 0%,
-      #F6F0E4 40%,
-      #F2EBF0 100%
-    );
-    border-color: #E8DFCC;
+    background-color: hsl(var(--card));
+    background-image: var(--gradient-plan);
+    border-color: hsl(var(--border));
   }
 
   .card-plan-supportive::before {
@@ -510,23 +561,19 @@ html {
   }
 
   .card-secondary-calm {
-    background: linear-gradient(180deg, hsl(40 54% 94.5%) 0%, hsl(40 50% 92.8%) 100%);
-    box-shadow: 0 1px 2px 0 hsl(26 23% 14% / 0.03);
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-sm);
   }
 
   .week-pace-bar-track {
-    background: hsl(40 45% 88%);
-    box-shadow: inset 0 1px 0 0 hsl(34 100% 97% / 0.5);
+    background: hsl(var(--muted));
+    box-shadow: inset 0 1px 0 0 var(--surface-inset);
   }
 
   .pace-guidance {
     border-color: hsl(var(--primary) / 0.08);
-    background: linear-gradient(
-      168deg,
-      hsl(40 54% 94%) 0%,
-      hsl(40 52% 92.5%) 100%
-    );
-    box-shadow: 0 1px 2px 0 hsl(26 23% 14% / 0.03);
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-sm);
   }
 
   .hero-amount-stage {
@@ -556,11 +603,11 @@ html {
   }
 
   .hero-chips-rhythm {
-    border-top: 1px solid #E8DFCC;
+    border-top: 1px solid hsl(var(--border));
   }
 
   .card-plan-hero .hero-chips-rhythm {
-    border-top-color: hsl(41 38% 86% / 0.85);
+    border-top-color: hsl(var(--border) / 0.85);
   }
 
   .card-plan-hero--compact .hero-safe-description {
@@ -649,25 +696,25 @@ html {
 
   .label-caps-hero {
     @apply font-sans text-[10px] font-semibold uppercase tracking-[0.16em];
-    color: #6E4E91;
+    color: hsl(var(--primary));
   }
 
   .label-caps-hero-safe {
     @apply font-sans text-[10px] font-semibold uppercase tracking-[0.16em];
-    color: hsl(32 9% 41%);
+    color: hsl(var(--muted-foreground));
   }
 
   .card-plan-hero .text-muted-foreground {
-    color: hsl(32 10% 38%);
+    color: hsl(var(--muted-foreground));
   }
 
   .card-plan-hero .money-hero,
   .card-plan-hero .money-amount-sm {
-    color: #1A1411;
+    color: hsl(var(--foreground));
   }
 
   .card-plan-hero .money-hero-fraction {
-    color: hsl(26 23% 14% / 0.72);
+    color: hsl(var(--foreground) / 0.72);
   }
 
   .label-caps-foreground {
@@ -688,22 +735,20 @@ html {
 
   .card-shell {
     @apply rounded-[1.75rem] border;
-    border-color: #e8dfcc;
-    background: linear-gradient(180deg, #fffdf8 0%, #f6f0e4 100%);
+    border-color: hsl(var(--border));
+    background: var(--gradient-card);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.9),
-      0 1px 2px 0 hsl(26 23% 14% / 0.035),
-      0 10px 28px -12px hsl(270 32% 36% / 0.1);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-md);
   }
 
   .card-dashboard {
     @apply rounded-[1.875rem] border;
-    border-color: #e8dfcc;
-    background: linear-gradient(180deg, #fffdf8 0%, #f6f0e4 100%);
+    border-color: hsl(var(--border));
+    background: var(--gradient-card);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.85),
-      0 1px 2px 0 hsl(26 23% 14% / 0.034),
-      0 8px 22px -10px hsl(270 32% 36% / 0.07);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-sm);
   }
 
   .hero-health-pill {
@@ -711,23 +756,23 @@ html {
   }
 
   .hero-health-pill--on_track {
-    background: hsl(96 22% 88%);
-    color: #4a5c40;
+    background: hsl(var(--success) / 0.18);
+    color: hsl(var(--success));
   }
 
   .hero-health-pill--tight {
-    background: hsl(32 50% 90%);
-    color: #8a5f2a;
+    background: hsl(var(--warning) / 0.18);
+    color: hsl(var(--warning));
   }
 
   .hero-health-pill--action_needed {
-    background: hsl(3 29% 90%);
-    color: #7a4542;
+    background: hsl(var(--destructive) / 0.18);
+    color: hsl(var(--destructive));
   }
 
   .hero-chip-row {
     @apply flex flex-wrap gap-2 border-t pt-5;
-    border-color: #e8dfcc;
+    border-color: hsl(var(--border));
   }
 
   .hero-chip {
@@ -735,22 +780,22 @@ html {
   }
 
   .hero-chip-sage {
-    background: hsl(96 22% 88%);
-    color: hsl(96 22% 26%);
+    background: hsl(var(--success) / 0.18);
+    color: hsl(var(--success));
   }
 
   .hero-chip-purple {
-    background: #efe7f7;
-    color: #4a3463;
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 
   .hero-chip-sand {
-    background: hsl(40 45% 88%);
-    color: #2b221b;
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
   }
 
   .week-pace-bar-spent {
-    background: linear-gradient(180deg, #8b6fad 0%, #6e4e91 100%);
+    background: var(--gradient-primary);
   }
 
   @keyframes weekPaceBarGrow {
@@ -822,42 +867,40 @@ html {
 
   .week-pace-feedback {
     @apply flex items-start gap-2.5 rounded-2xl border px-4 py-3 text-sm leading-relaxed;
-    border-color: #e8dfcc;
-    background: hsl(40 52% 94% / 0.85);
-    color: #746a5d;
+    border-color: hsl(var(--border));
+    background: hsl(var(--muted) / 0.85);
+    color: hsl(var(--muted-foreground));
   }
 
   .bill-row-lifted {
     @apply flex items-center gap-3 rounded-2xl border px-3.5 py-3;
-    border-color: #e8dfcc;
-    background: #fffdf8;
-    box-shadow: 0 1px 2px 0 hsl(26 23% 14% / 0.03);
+    border-color: hsl(var(--border));
+    background: hsl(var(--popover));
+    box-shadow: var(--shadow-sm);
   }
 
   .bills-tip-box {
     @apply mt-5 flex flex-col gap-3 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between;
-    border-color: hsl(32 50% 46% / 0.22);
-    background: hsl(40 62% 94% / 0.65);
+    border-color: hsl(var(--warning) / 0.22);
+    background: hsl(var(--warning) / 0.1);
   }
 
   /* Header nav — active tab: lifted white pill, purple text, underline */
   .shell-nav-link {
     @apply relative inline-flex items-center justify-center gap-2 rounded-full border border-transparent px-3.5 py-2 text-[13px] font-medium transition-[color,background-color,box-shadow,border-color,transform] duration-200 sm:px-4;
-    color: #746a5d;
+    color: hsl(var(--muted-foreground));
   }
 
   .shell-nav-link:hover:not(.shell-nav-link-active) {
-    background: #efe7f7;
-    color: #4a3463;
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 
   .shell-nav-link-active {
-    color: #6e4e91;
-    background: #fffdf8;
-    border-color: #e8dfcc;
-    box-shadow:
-      0 1px 2px 0 hsl(26 23% 14% / 0.04),
-      0 4px 14px -4px hsl(270 32% 36% / 0.1);
+    color: hsl(var(--primary));
+    background: hsl(var(--popover));
+    border-color: hsl(var(--border));
+    box-shadow: var(--shadow-sm);
   }
 
   .shell-nav-link-active::after {
@@ -869,18 +912,18 @@ html {
     height: 2px;
     transform: translateX(-50%);
     border-radius: 999px;
-    background: #6e4e91;
+    background: hsl(var(--primary));
   }
 
   .shell-nav-link-active svg {
-    color: #6e4e91;
+    color: hsl(var(--primary));
     opacity: 1;
   }
 
   .shell-logo-wrap {
     @apply flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[0.85rem] sm:h-12 sm:w-12;
-    background: linear-gradient(135deg, #6e4e91 0%, #4a3463 100%);
-    box-shadow: 0 2px 8px -2px hsl(269 30% 44% / 0.35);
+    background: var(--gradient-primary);
+    box-shadow: 0 2px 8px -2px hsl(var(--primary) / 0.35);
   }
 
   .shell-logo-wrap img {
@@ -889,31 +932,30 @@ html {
 
   .shell-currency-pill {
     @apply inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em];
-    border-color: #e8dfcc;
-    background: #fffdf8;
-    color: #746a5d;
+    border-color: hsl(var(--border));
+    background: hsl(var(--popover));
+    color: hsl(var(--muted-foreground));
   }
 
   .shell-header-card {
     @apply rounded-[1.75rem] border px-4 py-3.5 sm:px-5 sm:py-4;
-    border-color: #e8dfcc;
-    background: #fcfaf6;
+    border-color: hsl(var(--border));
+    background: hsl(var(--card));
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.9),
-      0 1px 2px 0 hsl(26 23% 14% / 0.035),
-      0 10px 28px -12px hsl(270 32% 36% / 0.1);
+      inset 0 1px 0 0 var(--surface-inset),
+      var(--shadow-md);
   }
 
   .shell-user-btn {
     @apply inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors;
-    border-color: #e8dfcc;
-    background: #fffdf8;
-    color: #6e4e91;
+    border-color: hsl(var(--border));
+    background: hsl(var(--popover));
+    color: hsl(var(--primary));
   }
 
   .shell-user-btn:hover {
-    background: #efe7f7;
-    border-color: #d8c8eb;
+    background: hsl(var(--accent));
+    border-color: hsl(var(--primary) / 0.3);
   }
 
   /* Home — unified warm atmosphere, header flows into content */
@@ -928,8 +970,8 @@ html {
     inset: 0 0 auto 0;
     height: min(58vh, 540px);
     background:
-      radial-gradient(ellipse 75% 55% at 18% 0%, hsl(40 58% 90% / 0.65), transparent 68%),
-      radial-gradient(ellipse 60% 50% at 88% 8%, hsl(270 36% 88% / 0.225), transparent 62%);
+      radial-gradient(ellipse 75% 55% at 18% 0%, hsl(var(--primary) / 0.08), transparent 68%),
+      radial-gradient(ellipse 60% 50% at 88% 8%, hsl(var(--primary) / 0.1), transparent 62%);
     pointer-events: none;
     z-index: 0;
   }
@@ -967,7 +1009,7 @@ html {
   .dashboard-home .card-shell {
     border-color: hsl(var(--primary) / 0.12);
     box-shadow:
-      inset 0 1px 0 0 hsl(34 100% 97% / 0.75),
+      inset 0 1px 0 0 var(--surface-inset),
       var(--shadow-soft);
   }
 
@@ -997,8 +1039,8 @@ html {
   .dashboard-home-tight::before {
     height: min(42vh, 380px);
     background:
-      radial-gradient(ellipse 70% 50% at 20% 0%, hsl(40 56% 91% / 0.45), transparent 70%),
-      radial-gradient(ellipse 55% 45% at 90% 6%, hsl(270 28% 90% / 0.2), transparent 65%);
+      radial-gradient(ellipse 70% 50% at 20% 0%, hsl(var(--primary) / 0.06), transparent 70%),
+      radial-gradient(ellipse 55% 45% at 90% 6%, hsl(var(--primary) / 0.08), transparent 65%);
   }
 
   .dashboard-home-tight .card-support,
@@ -1116,8 +1158,8 @@ html {
   }
 
   .chip-sage {
-    background: hsl(96 22% 88%);
-    color: hsl(96 22% 24%);
+    background: hsl(var(--success) / 0.18);
+    color: hsl(var(--success));
   }
 
   .chip-lavender {
@@ -1127,8 +1169,8 @@ html {
   }
 
   .chip-sand {
-    background: hsl(40 45% 86%);
-    color: hsl(26 23% 20%);
+    background: hsl(var(--muted));
+    color: hsl(var(--foreground));
   }
 }
 

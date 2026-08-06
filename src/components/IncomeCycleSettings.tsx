@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
 import type { IncomeCycle, IncomeCyclePreset } from "@/types/incomeCycle";
-import { INCOME_CYCLE_PRESET_LABELS } from "@/types/incomeCycle";
-import {
-  formatIncomeDateLabel,
-  getNextIncomeDate,
-  isIncomeCycleConfigured,
-  presetToIncomeCycle,
-} from "@/utils/incomeCycle";
+import { isIncomeCycleConfigured, presetToIncomeCycle } from "@/utils/incomeCycle";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +12,16 @@ const PRESET_ORDER: IncomeCyclePreset[] = [
   "monthly_last",
   "custom",
 ];
+
+const PRESET_CARDS: Record<
+  IncomeCyclePreset,
+  { title: string; description: string }
+> = {
+  monthly_1: { title: "1st of month", description: "Classic monthly" },
+  monthly_15: { title: "15th of month", description: "Mid-month payday" },
+  monthly_last: { title: "Last day", description: "End-of-month pay" },
+  custom: { title: "Custom day", description: "Any day you choose" },
+};
 
 interface IncomeCycleSettingsProps {
   value: IncomeCycle | null;
@@ -36,16 +41,6 @@ export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProp
     if (value.day != null) setCustomDay(String(value.day));
   }, [value]);
 
-  const buildCycle = (): IncomeCycle | null => {
-    if (!preset) return null;
-    if (preset === "custom") {
-      const day = Number.parseInt(customDay, 10);
-      if (!Number.isFinite(day) || day < 1 || day > 31) return null;
-      return presetToIncomeCycle("custom", day);
-    }
-    return presetToIncomeCycle(preset);
-  };
-
   const applyCycle = (nextPreset: IncomeCyclePreset) => {
     setPreset(nextPreset);
     const cycle =
@@ -55,30 +50,48 @@ export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProp
     onChange(isIncomeCycleConfigured(cycle) ? cycle : null);
   };
 
-  const draft = buildCycle();
-  const previewCycle = draft && isIncomeCycleConfigured(draft) ? draft : null;
-  const nextIncomePreview = previewCycle
-    ? formatIncomeDateLabel(getNextIncomeDate(previewCycle))
-    : null;
-
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <p className="label-caps text-muted-foreground">When does your cycle start?</p>
+      <div
+        className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+        role="radiogroup"
+        aria-label="Cycle start"
+      >
         {PRESET_ORDER.map((option) => {
           const selected = preset === option;
+          const card = PRESET_CARDS[option];
           return (
             <button
               key={option}
               type="button"
+              role="radio"
+              aria-checked={selected}
               onClick={() => applyCycle(option)}
               className={cn(
-                "touch-hit rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                "touch-hit relative rounded-xl border px-3 py-3 text-left transition-colors",
                 selected
                   ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-transparent bg-muted/60 text-foreground hover:bg-muted",
               )}
             >
-              {INCOME_CYCLE_PRESET_LABELS[option]}
+              <p className="text-sm font-semibold">{card.title}</p>
+              <p
+                className={cn(
+                  "mt-0.5 text-xs",
+                  selected ? "text-primary/80" : "text-muted-foreground",
+                )}
+              >
+                {card.description}
+              </p>
+              {selected ? (
+                <span
+                  className="absolute bottom-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                  aria-hidden
+                >
+                  <Check className="h-3 w-3" strokeWidth={2.5} />
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -104,13 +117,10 @@ export function IncomeCycleSettings({ value, onChange }: IncomeCycleSettingsProp
             }}
             className="max-w-[8rem]"
           />
+          <p className="text-xs text-muted-foreground">
+            Shorter months use the last valid day automatically.
+          </p>
         </div>
-      ) : null}
-
-      {nextIncomePreview ? (
-        <p className="text-xs text-muted-foreground">
-          Next income date: <span className="font-medium text-foreground">{nextIncomePreview}</span>
-        </p>
       ) : null}
     </div>
   );

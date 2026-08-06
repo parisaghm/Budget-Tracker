@@ -29,8 +29,8 @@ const TONE_STYLES: Record<
     dot: "bg-warning",
   },
   no_budget: {
-    wrap: "border-[#E8DFCC] bg-[#F6F0E4]/70",
-    dot: "bg-[#6E4E91]/55",
+    wrap: "border-border bg-card/70",
+    dot: "bg-primary/55",
   },
 };
 
@@ -58,7 +58,7 @@ export function BudgetAttentionCallout({
       </div>
       <Link
         to={href}
-        className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-[#6E4E91]/30 bg-[#FFFDF8] px-3 py-2 text-sm font-semibold text-[#6E4E91] transition-colors hover:bg-[#EFE7F7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-primary/30 bg-popover px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
         {ctaLabel}
         <ArrowRight className="h-3.5 w-3.5" aria-hidden />

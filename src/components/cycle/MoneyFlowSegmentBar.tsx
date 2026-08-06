@@ -2,11 +2,11 @@ import { cn } from "@/lib/utils";
 import type { MoneyFlowSegment } from "@/utils/cycleReviewModel";
 
 const SEGMENT_COLORS: Record<MoneyFlowSegment["id"], string> = {
-  fixed: "#5B3F7A",
-  flexible: "#C4A35A",
-  non_monthly: "#5C5346",
-  savings: "#6B7F5E",
-  left_over: "#C9B8E0",
+  fixed: "hsl(var(--segment-bills))",
+  flexible: "hsl(var(--segment-spent))",
+  non_monthly: "hsl(var(--muted-foreground))",
+  savings: "hsl(var(--segment-goals))",
+  left_over: "hsl(var(--segment-safe))",
 };
 
 export function MoneyFlowSegmentBar({

@@ -20,7 +20,7 @@ export function ExpensesEmptyState({
 }: ExpensesEmptyStateProps) {
   if (variant === "no_results") {
     return (
-      <div className="rounded-2xl border border-dashed border-[#E8DFCC] bg-[#F6F0E4]/40 px-5 py-10 text-center">
+      <div className="rounded-2xl border border-dashed border-border bg-card/40 px-5 py-10 text-center">
         <h3 className="font-display text-lg font-semibold text-foreground">
           No expenses match these filters.
         </h3>
@@ -32,7 +32,7 @@ export function ExpensesEmptyState({
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-[#E8DFCC]"
+              className="rounded-xl border-border"
               onClick={onClearFilters}
             >
               Clear filters
@@ -42,7 +42,7 @@ export function ExpensesEmptyState({
             <Button
               type="button"
               variant="outline"
-              className="rounded-xl border-[#E8DFCC]"
+              className="rounded-xl border-border"
               onClick={onClearSearch}
             >
               Clear search
@@ -54,8 +54,8 @@ export function ExpensesEmptyState({
   }
 
   return (
-    <div className="rounded-2xl border border-dashed border-[#E8DFCC] bg-[#F6F0E4]/40 px-5 py-12 text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FFFDF8] border border-[#E8DFCC]">
+    <div className="rounded-2xl border border-dashed border-border bg-card/40 px-5 py-12 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-popover border border-border">
         <ReceiptText className="h-7 w-7 text-muted-foreground" aria-hidden />
       </div>
       <h3 className="font-display text-lg font-semibold text-foreground">
@@ -68,7 +68,7 @@ export function ExpensesEmptyState({
         <Button
           type="button"
           onClick={onAdd}
-          className="mt-5 rounded-xl bg-[#6E4E91] hover:bg-[#5B3F7A]"
+          className="mt-5 rounded-xl bg-primary hover:bg-primary/90"
         >
           Add expense
         </Button>

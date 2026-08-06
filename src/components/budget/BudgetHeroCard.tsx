@@ -70,7 +70,7 @@ export function BudgetHeroCard({
             id="budget-hero-heading"
             className="budget-hero-mobile__plan-label flex items-center gap-2"
           >
-            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#6B7F5E]" aria-hidden />
+            <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-success" aria-hidden />
             {monthPlanLabel}
           </p>
           {incomeCents > 0 ? (
@@ -93,7 +93,7 @@ export function BudgetHeroCard({
               </div>
             </div>
             {isOver ? (
-              <p className="budget-hero-mobile__weekly text-[#9C5A56]">
+              <p className="budget-hero-mobile__weekly text-destructive">
                 {formatMoney(Math.abs(remainingAllocationCents), currency)} over your {monthLabel}{" "}
                 plan
               </p>
@@ -193,7 +193,7 @@ export function BudgetHeroCard({
             <p
               className={cn(
                 "mt-4 text-sm leading-relaxed",
-                isOver ? "text-[#9C5A56]" : "text-[#746A5D]",
+                isOver ? "text-destructive" : "text-muted-foreground",
               )}
             >
               {isOver ? (

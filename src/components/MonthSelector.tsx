@@ -56,11 +56,11 @@ export function MonthSelector({
 
   const isMobile = variant === "mobile";
   const navBtnClass = cn(
-    "touch-hit inline-flex shrink-0 items-center justify-center rounded-full text-[#746A5D] transition-colors hover:bg-[#EFE7F7] hover:text-[#4A3463]",
+    "touch-hit inline-flex shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-primary",
     isMobile ? "h-11 w-11" : "h-9 w-9",
   );
   const pillClass = cn(
-    "flex min-w-0 items-center justify-center gap-2 rounded-full border border-[#E8DFCC] bg-[#FFFDF8]",
+    "flex min-w-0 items-center justify-center gap-2 rounded-full border border-border bg-popover",
     isMobile ? "min-h-12 flex-1 px-4 py-3" : "flex-1 px-4 py-1.5 sm:flex-none sm:px-5 sm:py-2",
   );
 
@@ -83,10 +83,10 @@ export function MonthSelector({
         <ChevronLeft className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
       </button>
       <div className={pillClass}>
-        <Calendar className="h-4 w-4 shrink-0 text-[#6E4E91]" aria-hidden />
+        <Calendar className="h-4 w-4 shrink-0 text-primary" aria-hidden />
         <span
           className={cn(
-            "truncate font-medium text-[#1A1411]",
+            "truncate font-medium text-foreground",
             isMobile ? "text-base" : "text-sm",
           )}
           title={label}

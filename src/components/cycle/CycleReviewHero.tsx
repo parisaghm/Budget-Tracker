@@ -34,7 +34,7 @@ export function CycleReviewHero({
 
   return (
     <section
-      className="card-plan-hero overflow-hidden rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-7"
+      className="card-plan-hero overflow-hidden rounded-[1.5rem] border border-border p-5 sm:p-7"
       aria-labelledby="cycle-review-heading"
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
@@ -66,7 +66,7 @@ export function CycleReviewHero({
           <Button
             type="button"
             size="lg"
-            className="rounded-full bg-[#472f8a] px-6 text-white shadow-md shadow-primary/20 hover:bg-[#3d2878]"
+            className="rounded-full bg-primary px-6 text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90"
             onClick={() => onPlayRecap(hero.recapCta.completedCycleId)}
             aria-label={
               hero.recapCta.kind === "play"

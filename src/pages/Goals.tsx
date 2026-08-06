@@ -27,6 +27,7 @@ export default function GoalsPage() {
     currentMonth,
     setCurrentMonth,
     budget,
+    displayCurrency,
     savingsGoals,
     addSavingsGoal,
     updateSavingsGoal,
@@ -43,7 +44,7 @@ export default function GoalsPage() {
 
   const userId = user?.id ?? (isDemoMode ? "demo" : "");
   const { adjustments } = useBudgetAdjustments(userId || undefined, currentMonth);
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
 
   const authoritativePlan = useMemo(
     () => resolveAuthoritativeSavingsPlan(savingsGoals),

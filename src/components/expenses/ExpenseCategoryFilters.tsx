@@ -36,8 +36,8 @@ function FilterChipButton({
         "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
         selected
-          ? "border-[#6E4E91] bg-[#6E4E91] text-primary-foreground"
-          : "border-[#E8DFCC] bg-[#FFFDF8] text-foreground hover:bg-[#F6F0E4]",
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border bg-popover text-foreground hover:bg-card",
       )}
     >
       {chip.value !== "all" && chip.iconKey ? (
@@ -106,8 +106,8 @@ export function ExpenseCategoryFilters({
                 "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                 moreActive || open
-                  ? "border-[#6E4E91]/40 bg-[#EFE7F7] text-[#6E4E91]"
-                  : "border-[#E8DFCC] bg-[#FFFDF8] text-foreground hover:bg-[#F6F0E4]",
+                  ? "border-primary/40 bg-accent text-primary"
+                  : "border-border bg-popover text-foreground hover:bg-card",
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
@@ -116,7 +116,7 @@ export function ExpenseCategoryFilters({
           </PopoverTrigger>
           <PopoverContent
             align="start"
-            className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl border-[#E8DFCC] bg-[#FFFDF8] p-4 shadow-md"
+            className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl border-border bg-popover p-4 shadow-md"
           >
             <div className="space-y-4">
               <div>
@@ -137,8 +137,8 @@ export function ExpenseCategoryFilters({
                         aria-pressed={selected}
                         className={cn(
                           "flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-medium",
-                          "hover:bg-[#F6F0E4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                          selected && "bg-[#EFE7F7] text-[#6E4E91]",
+                          "hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                          selected && "bg-accent text-primary",
                         )}
                       >
                         <CategoryEmojiIcon
@@ -156,25 +156,25 @@ export function ExpenseCategoryFilters({
                 </div>
               </div>
 
-              <div className="space-y-2 border-t border-[#E8DFCC] pt-3">
+              <div className="space-y-2 border-t border-border pt-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Special filters
                 </p>
-                <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm hover:bg-[#F6F0E4]">
+                <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm hover:bg-card">
                   <input
                     type="checkbox"
                     checked={showUncategorisedOnly}
                     onChange={(e) => onShowUncategorisedOnlyChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-[#E8DFCC] text-[#6E4E91] focus:ring-[#6E4E91]/40"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-ring/40"
                   />
                   Uncategorised only
                 </label>
-                <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm hover:bg-[#F6F0E4]">
+                <label className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm hover:bg-card">
                   <input
                     type="checkbox"
                     checked={showBillGeneratedOnly}
                     onChange={(e) => onShowBillGeneratedOnlyChange(e.target.checked)}
-                    className="h-4 w-4 rounded border-[#E8DFCC] text-[#6E4E91] focus:ring-[#6E4E91]/40"
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-ring/40"
                   />
                   Bill-generated expenses
                 </label>
@@ -183,7 +183,7 @@ export function ExpenseCategoryFilters({
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 w-full rounded-xl border-[#E8DFCC]"
+                className="h-10 w-full rounded-xl border-border"
                 onClick={() => {
                   onClearFilters();
                   setOpen(false);

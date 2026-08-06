@@ -67,13 +67,13 @@ export function ExpensesToolbar({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search expenses"
             autoComplete="off"
-            className="h-11 w-full rounded-xl border border-[#E8DFCC] bg-[#FFFDF8] py-2 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            className="h-11 w-full rounded-xl border border-border bg-popover py-2 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
           />
           {searchValue ? (
             <button
               type="button"
               onClick={() => onSearchChange("")}
-              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-[#F6F0E4] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               aria-label="Clear search"
             >
               <X className="h-3.5 w-3.5" />
@@ -88,8 +88,8 @@ export function ExpensesToolbar({
           className={cn(
             "h-11 shrink-0 gap-1.5 rounded-xl px-4 text-sm font-semibold",
             formOpen
-              ? "border border-[#6E4E91]/40 bg-[#EFE7F7] text-[#6E4E91] hover:bg-[#EFE7F7]/80"
-              : "bg-[#6E4E91] text-primary-foreground hover:bg-[#5B3F7A]",
+              ? "border border-primary/40 bg-accent text-primary hover:bg-accent/80"
+              : "bg-primary text-primary-foreground hover:bg-primary/90",
           )}
         >
           <Plus className="h-4 w-4" aria-hidden />

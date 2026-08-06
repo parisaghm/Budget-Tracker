@@ -12,11 +12,11 @@ const VARIANT_LABEL: Record<BillStatusVariant, string> = {
 
 /** Calm, non-color-only status pills. Each pill pairs a tint with a text label. */
 const VARIANT_CLASS: Record<BillStatusVariant, string> = {
-  upcoming: "bg-[#EFE7F7] text-[#5B3F7A]",
-  today: "bg-[#F7EDD8] text-[#8A5B1F]",
-  overdue: "bg-[#F6E1DD] text-[#9A3B2E]",
-  paid: "bg-[#E4F0E4] text-[#3B6B41]",
-  "one-time": "bg-[#F1EBDD] text-[#6B5A3F]",
+  upcoming: "bg-accent text-primary",
+  today: "bg-warning/15 text-warning",
+  overdue: "bg-destructive/15 text-destructive",
+  paid: "bg-success/15 text-success",
+  "one-time": "bg-muted text-muted-foreground",
 };
 
 interface BillStatusBadgeProps {

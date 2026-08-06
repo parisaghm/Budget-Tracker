@@ -32,7 +32,7 @@ export function CycleWatchList({
   const fmt = (cents: number) => formatMoney(cents, currency);
 
   return (
-    <section className="card-dashboard space-y-4 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6">
+    <section className="card-dashboard space-y-4 rounded-[1.5rem] border border-border p-5 sm:p-6">
       <header>
         <h2 className="font-display text-xl font-semibold text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -41,7 +41,7 @@ export function CycleWatchList({
       </header>
 
       {items.length === 0 ? (
-        <p className="rounded-2xl bg-[#F6F0E4]/80 px-4 py-3 text-sm text-muted-foreground">
+        <p className="rounded-2xl bg-card/80 px-4 py-3 text-sm text-muted-foreground">
           Nothing urgent to watch right now.
         </p>
       ) : (
@@ -70,7 +70,7 @@ export function CycleWatchItem({
   const explanation = formatWatchExplanation(item, formatMoneyFn);
 
   return (
-    <li className="rounded-2xl bg-[#F6F0E4]/70 p-4">
+    <li className="rounded-2xl bg-card/70 p-4">
       <div className="flex gap-3">
         <span
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${toneBg[item.tone]}`}

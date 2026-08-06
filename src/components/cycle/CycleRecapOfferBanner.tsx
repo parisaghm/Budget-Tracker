@@ -34,7 +34,7 @@ export function CycleRecapOfferBanner({
 }) {
   return (
     <div
-      className="card-dashboard flex flex-col gap-3 rounded-[1.25rem] border border-[#E8DFCC] p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+      className="card-dashboard flex flex-col gap-3 rounded-[1.25rem] border border-border p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       role="status"
     >
       <div className="min-w-0 flex-1">

@@ -10,7 +10,7 @@ export function CycleComparisonCard({
   currency: string;
 }) {
   return (
-    <section className="card-dashboard space-y-4 rounded-[1.5rem] border border-[#E8DFCC] p-5 sm:p-6">
+    <section className="card-dashboard space-y-4 rounded-[1.5rem] border border-border p-5 sm:p-6">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="font-display text-xl font-semibold text-foreground">
@@ -24,7 +24,7 @@ export function CycleComparisonCard({
       </header>
 
       {!model.available ? (
-        <p className="rounded-2xl bg-[#F6F0E4]/80 px-4 py-3 text-sm text-muted-foreground">
+        <p className="rounded-2xl bg-card/80 px-4 py-3 text-sm text-muted-foreground">
           {model.emptyReason}
         </p>
       ) : (
@@ -46,7 +46,7 @@ function StatCard({
   currency: string;
 }) {
   return (
-    <div className="rounded-2xl bg-[#F6F0E4]/70 p-4">
+    <div className="rounded-2xl bg-card/70 p-4">
       <p className="label-caps text-muted-foreground">{stat.label}</p>
       <p className="mt-2 font-display text-2xl font-semibold tabular-nums text-foreground">
         {formatStatValue(stat.valueLabel, currency)}

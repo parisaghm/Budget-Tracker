@@ -2,6 +2,7 @@ import { useId, useMemo } from "react";
 import { differenceInCalendarDays } from "date-fns";
 import type { FinancialPace } from "@/utils/financialPace";
 import { cn } from "@/lib/utils";
+import { getChartTheme } from "@/utils/chartTheme";
 
 interface HeroCycleTrendProps {
   cycleStartLabel: string;
@@ -30,6 +31,7 @@ export function HeroCycleTrend({
   className,
 }: HeroCycleTrendProps) {
   const fillGradientId = useId();
+  const theme = getChartTheme();
 
   const chart = useMemo(() => {
     const width = 220;
@@ -97,8 +99,8 @@ export function HeroCycleTrend({
       >
         <defs>
           <linearGradient id={fillGradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#6E4E91" stopOpacity="0.14" />
-            <stop offset="100%" stopColor="#6E4E91" stopOpacity="0" />
+            <stop offset="0%" stopColor={theme.primary} stopOpacity="0.14" />
+            <stop offset="100%" stopColor={theme.primary} stopOpacity="0" />
           </linearGradient>
         </defs>
         <line
@@ -106,14 +108,14 @@ export function HeroCycleTrend({
           y1={chart.baselineY}
           x2={chart.padX + chart.innerW}
           y2={chart.baselineY}
-          stroke="#E8DFCC"
+          stroke={theme.grid}
           strokeWidth="1"
         />
         <path d={chart.fillPath} fill={`url(#${fillGradientId})`} />
         <path
           d={chart.actualPath}
           fill="none"
-          stroke="#6E4E91"
+          stroke={theme.primary}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -121,14 +123,14 @@ export function HeroCycleTrend({
         <path
           d={chart.forecastPath}
           fill="none"
-          stroke="#6E4E91"
+          stroke={theme.primary}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeDasharray="4 4"
           opacity="0.5"
         />
-        <circle cx={chart.dot.x} cy={chart.dot.y} r="4" fill="#6E4E91" />
+        <circle cx={chart.dot.x} cy={chart.dot.y} r="4" fill={theme.primary} />
       </svg>
       <div className="hero-cycle-trend__axis mt-1 flex justify-between text-[10px] text-muted-foreground">
         <span>{cycleStartLabel}</span>

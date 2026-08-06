@@ -24,7 +24,14 @@ import {
   SavingsGoal,
 } from "@/types/finance";
 import { DEFAULT_CATEGORY_ICON_KEY, inferIconKeyFromLabel } from "@/utils/categoryIcons";
-import { getCurrentMonth, getPreviousMonth, normalizeCurrencyCode, normalizeYearMonthYm, toDateInputValue } from "@/utils/money";
+import {
+  getCurrentMonth,
+  getPreviousMonth,
+  isPresetCurrency,
+  normalizeCurrencyCode,
+  normalizeYearMonthYm,
+  toDateInputValue,
+} from "@/utils/money";
 import { calculateGoalPlan } from "@/utils/goalPlan";
 import { useCycleGoalContributions } from "@/hooks/useCycleGoalContributions";
 import { computeGrossSavingsAllocationCents } from "@/utils/savingsAllocation";
@@ -57,8 +64,11 @@ import { readIncomeCycle, writeIncomeCycle } from "@/utils/incomeCyclePreference
 import {
   fetchUserSettings,
   getSupabaseProjectHost,
+  readDisplayCurrencyFromLocalStorage,
+  upsertUserDisplayCurrency,
   upsertUserIncomeCycle,
   upsertUserSelectedMonth,
+  writeDisplayCurrencyToLocalStorage,
   type MonthSelectionSource,
   type SettingsPersistenceSource,
 } from "@/utils/userSettings";
@@ -415,6 +425,7 @@ export interface FinanceDiagnosticsSnapshot {
   recurringBillsCount: number;
   upcomingBillsCount: number;
   localOnlyRecurringBillsCount: number;
+  displayCurrency: string;
 }
 
 function useFinanceDataInternal() {
@@ -440,6 +451,11 @@ function useFinanceDataInternal() {
   const [settingsSource, setSettingsSource] = useState<SettingsPersistenceSource>("none");
   const [localOnlyRecurringBillsCount, setLocalOnlyRecurringBillsCount] = useState(0);
   const [budgetCycles, setBudgetCycles] = useState<BudgetCycle[]>([]);
+  /** App-wide display preference. Temporary localStorage/EUR until user_settings wins. */
+  const [displayCurrency, setDisplayCurrencyState] = useState(() => {
+    if (!financeUserId || isDemoMode) return "EUR";
+    return readDisplayCurrencyFromLocalStorage(financeUserId) ?? "EUR";
+  });
   /** Discards stale `loadFromSupabase` results when a newer load started (e.g. onboarding sync vs initial fetch). */
   const financeLoadGenerationRef = useRef(0);
 
@@ -448,6 +464,7 @@ function useFinanceDataInternal() {
       setSettingsHydrated(true);
       setMonthSelectionSource("demo");
       setSettingsSource("none");
+      setDisplayCurrencyState("EUR");
       return;
     }
 
@@ -455,11 +472,17 @@ function useFinanceDataInternal() {
       setSettingsHydrated(true);
       setMonthSelectionSource("default_current_month");
       setSettingsSource("none");
+      setDisplayCurrencyState("EUR");
       return;
     }
 
     let cancelled = false;
     setSettingsHydrated(false);
+    // Temporary cache before Supabase settings win (avoids EUR flicker).
+    const cachedCurrency = readDisplayCurrencyFromLocalStorage(financeUserId);
+    if (cachedCurrency) {
+      setDisplayCurrencyState(cachedCurrency);
+    }
 
     void (async () => {
       const remote = hasSupabaseEnv ? await fetchUserSettings(financeUserId) : null;
@@ -486,6 +509,16 @@ function useFinanceDataInternal() {
 
       setIncomeCycle(resolvedCycle);
       setSettingsSource(resolvedSettingsSource);
+
+      // Supabase display_currency wins over localStorage once settings load.
+      if (remote?.displayCurrency) {
+        setDisplayCurrencyState(remote.displayCurrency);
+        writeDisplayCurrencyToLocalStorage(financeUserId, remote.displayCurrency);
+      } else if (cachedCurrency) {
+        setDisplayCurrencyState(cachedCurrency);
+      } else {
+        setDisplayCurrencyState("EUR");
+      }
 
       if (resolvedCycle) {
         const activeMonth = getActiveBudgetMonthKey(resolvedCycle);
@@ -1005,7 +1038,7 @@ function useFinanceDataInternal() {
         id: selectedCycle?.id ?? `cycle-${currentMonth}`,
         month: currentMonth,
         salaryCents: totalIncomeThisCycleCents,
-        currency: "EUR",
+        currency: displayCurrency,
         createdAt: selectedCycle?.createdAt ?? new Date().toISOString(),
       };
     }
@@ -1013,6 +1046,7 @@ function useFinanceDataInternal() {
   }, [
     currentMonth,
     currentMonthData.budget,
+    displayCurrency,
     hasIncomeForCycle,
     isDemoMode,
     selectedCycle,
@@ -1116,23 +1150,48 @@ function useFinanceDataInternal() {
     [data.budgets, isDemoMode, user],
   );
 
-  const setCurrency = useCallback(
+  const setDisplayCurrency = useCallback(
     (currency: string) => {
       if (isDemoMode) {
         toast.info("Sample budget", { description: DEMO_EDIT_MESSAGE });
         return;
       }
       if (!user) return;
-      const budget = data.budgets[currentMonth];
-      void updateMonthlyIncome(
-        currentMonth,
-        budget?.salaryCents ?? 0,
-        budget?.incomeNote,
-        currency,
-        { source: "currency_only" },
-      );
+
+      const normalized = normalizeCurrencyCode(currency);
+      if (!isPresetCurrency(normalized)) {
+        toast.error("Unsupported currency", {
+          description: "Choose a currency from the supported list.",
+        });
+        return;
+      }
+
+      const previous = displayCurrency;
+      setDisplayCurrencyState(normalized);
+      writeDisplayCurrencyToLocalStorage(user.id, normalized);
+
+      if (!hasSupabaseEnv) return;
+
+      void upsertUserDisplayCurrency(user.id, normalized).then((result) => {
+        if (!result.ok) {
+          setDisplayCurrencyState(previous);
+          writeDisplayCurrencyToLocalStorage(user.id, previous);
+          toast.error("Could not save currency", {
+            description: result.errorMessage ?? "Please try again.",
+          });
+          return;
+        }
+        setSettingsSource("supabase");
+        // Reconcile from server so settings cache stays authoritative.
+        void fetchUserSettings(user.id).then((remote) => {
+          if (remote?.displayCurrency) {
+            setDisplayCurrencyState(remote.displayCurrency);
+            writeDisplayCurrencyToLocalStorage(user.id, remote.displayCurrency);
+          }
+        });
+      });
     },
-    [currentMonth, data.budgets, isDemoMode, updateMonthlyIncome, user],
+    [displayCurrency, isDemoMode, user],
   );
 
   const setSalary = useCallback(
@@ -2261,10 +2320,12 @@ function useFinanceDataInternal() {
       recurringBillsCount: data.recurringBills.length,
       upcomingBillsCount: upcomingBills.length,
       localOnlyRecurringBillsCount,
+      displayCurrency,
     }),
     [
       currentMonth,
       currentMonthData.budget?.salaryCents,
+      displayCurrency,
       effectiveSalaryCents,
       frozenCycleEndIso,
       frozenCycleStartIso,
@@ -2764,7 +2825,8 @@ function useFinanceDataInternal() {
     setSalary,
     updateIncomeEntry,
     deleteIncomeEntry,
-    setCurrency,
+    displayCurrency,
+    setDisplayCurrency,
     updateMonthlyIncome,
     getCurrentMonthIncome,
     getPreviousMonthIncome,

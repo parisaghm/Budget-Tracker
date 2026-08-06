@@ -7,10 +7,10 @@ import { formatMoney } from "@/utils/money";
 const GOAL_ICONS: LucideIcon[] = [Umbrella, Plane, Bike, Target];
 
 const GOAL_BG = [
-  "hsl(278 24% 38% / 0.1)",
-  "hsl(32 42% 58% / 0.14)",
-  "hsl(152 28% 38% / 0.12)",
-  "hsl(278 16% 72% / 0.2)",
+  "hsl(var(--primary) / 0.12)",
+  "hsl(var(--warning) / 0.14)",
+  "hsl(var(--success) / 0.12)",
+  "hsl(var(--accent) / 0.55)",
 ];
 
 export interface SavingsGoalsCardProps {

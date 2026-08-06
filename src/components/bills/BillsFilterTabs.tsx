@@ -36,15 +36,15 @@ export function BillsFilterTabs({ active, options, onChange, className }: BillsF
             onClick={() => onChange(option.value)}
             className={cn(
               "touch-hit shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6E4E91]/40 focus-visible:ring-offset-1",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1",
               isActive
-                ? "bg-[#6E4E91] text-white"
-                : "text-[#746A5D] hover:bg-[#EFE7F7] hover:text-[#4A3463]",
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-primary",
             )}
           >
             {option.label}
             {option.count > 0 ? (
-              <span className={cn("ml-1.5 text-xs", isActive ? "text-white/80" : "text-[#9C9284]")}>
+              <span className={cn("ml-1.5 text-xs", isActive ? "text-primary-foreground/80" : "text-muted-foreground")}>
                 {option.count}
               </span>
             ) : null}

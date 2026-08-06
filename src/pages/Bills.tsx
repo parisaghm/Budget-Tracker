@@ -35,6 +35,7 @@ export default function BillsPage() {
     allExpenses,
     allCategories,
     budget,
+    displayCurrency,
     addRecurringBill,
     updateRecurringBill,
     deleteRecurringBill,
@@ -61,7 +62,7 @@ export default function BillsPage() {
   const [deleteTarget, setDeleteTarget] = useState<RecurringBill | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const activeCurrency = budget?.currency ?? "EUR";
+  const activeCurrency = displayCurrency;
   const today = useMemo(() => new Date(), []);
 
   const model = useMemo(
@@ -237,7 +238,7 @@ export default function BillsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2
                     id="upcoming-bills-heading"
-                    className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-[#1A1411]"
+                    className="text-[1.125rem] font-semibold leading-snug tracking-[-0.015em] text-foreground"
                   >
                     Upcoming
                   </h2>
@@ -252,14 +253,14 @@ export default function BillsPage() {
                 </div>
 
                 {selectedCalendarDate ? (
-                  <div className="mt-3 flex items-center justify-between gap-3 rounded-full bg-[#EFE7F7] px-4 py-2 text-sm text-[#4A3463]">
+                  <div className="mt-3 flex items-center justify-between gap-3 rounded-full bg-accent px-4 py-2 text-sm text-primary">
                     <span>
                       Showing bills due on {formatBillDueDateLabel(selectedCalendarDate, "MMMM d")}
                     </span>
                     <button
                       type="button"
                       onClick={() => setSelectedCalendarDate(null)}
-                      className="touch-hit inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium hover:bg-white/60"
+                      className="touch-hit inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium hover:bg-primary-foreground/60"
                       aria-label="Clear selected day filter"
                     >
                       <X className="h-3.5 w-3.5" aria-hidden />

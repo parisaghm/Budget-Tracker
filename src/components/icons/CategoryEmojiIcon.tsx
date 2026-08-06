@@ -6,9 +6,6 @@ const SIZE_CLASS = {
   md: { box: 'h-10 w-10', icon: 'h-5 w-5' },
 } as const;
 
-/** Soft cream well matching the Budget icon reference. */
-const CREAM_BG = '#F3EBE0';
-
 export interface CategoryEmojiIconProps {
   iconKey?: string | null;
   categoryValue?: string | null;
@@ -21,7 +18,7 @@ export interface CategoryEmojiIconProps {
 }
 
 /**
- * Colorful OpenMoji SVG inside a soft cream rounded-square container.
+ * Colorful OpenMoji SVG inside a muted rounded-square container.
  * Uses local assets — appearance is consistent across platforms.
  */
 export function CategoryEmojiIcon({
@@ -41,11 +38,10 @@ export function CategoryEmojiIcon({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-xl',
+        'flex shrink-0 items-center justify-center rounded-xl bg-muted',
         sizeClass.box,
         className,
       )}
-      style={{ backgroundColor: CREAM_BG }}
       role={decorative ? undefined : 'img'}
       aria-label={decorative ? undefined : accessibleName}
       aria-hidden={decorative || !accessibleName ? true : undefined}
