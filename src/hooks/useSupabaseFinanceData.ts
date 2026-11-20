@@ -577,8 +577,8 @@ function useFinanceDataInternal() {
           });
         }
       }
-      // Schedule preference only — do not rewrite frozen cycle dates or jump month
-      // via recomputed windows. Future cycles use the new schedule at creation time.
+      // Closed cycles keep their frozen dates. ensureCyclesUpToToday re-runs on
+      // this change and realigns only the current cycle's end to the new payday.
       if (normalized) {
         setMonthSelectionSource("income_cycle_active");
       }
@@ -1293,31 +1293,44 @@ function useFinanceDataInternal() {
       let newExpense: Expense | null = null;
       let resolvedBudgetId = budgetId;
       try {
-        const { error: budgetError } = await supabase.from("budget_months").upsert(
-          {
-            id: budgetId,
-            user_id: user.id,
-            month: currentMonth,
-            salary_cents: budget?.salaryCents ?? 0,
-            currency: budget?.currency ?? "EUR",
-            income_note: budget?.incomeNote ?? null,
-          },
-          { onConflict: "user_id,month" },
-        );
-
-        if (budgetError) {
-          throw new Error(budgetError.message);
-        }
-
-        const { data: resolvedBudget, error: resolveBudgetError } = await supabase
+        // Reuse the month row if it exists. Upserting a fresh random id over an
+        // existing (user_id, month) row would rewrite its primary key and fail.
+        const { data: existingMonth, error: existingMonthError } = await supabase
           .from("budget_months")
           .select("id")
           .eq("user_id", user.id)
           .eq("month", currentMonth)
           .maybeSingle();
+        if (existingMonthError) {
+          throw new Error(existingMonthError.message);
+        }
 
-        if (resolveBudgetError) {
-          throw new Error(resolveBudgetError.message);
+        let resolvedBudget: { id: string } | null = existingMonth;
+        if (!resolvedBudget?.id) {
+          const { error: budgetError } = await supabase.from("budget_months").upsert(
+            {
+              id: budgetId,
+              user_id: user.id,
+              month: currentMonth,
+              salary_cents: budget?.salaryCents ?? 0,
+              currency: budget?.currency ?? "EUR",
+              income_note: budget?.incomeNote ?? null,
+            },
+            { onConflict: "user_id,month", ignoreDuplicates: true },
+          );
+          if (budgetError) {
+            throw new Error(budgetError.message);
+          }
+          const { data: created, error: createdError } = await supabase
+            .from("budget_months")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("month", currentMonth)
+            .maybeSingle();
+          if (createdError) {
+            throw new Error(createdError.message);
+          }
+          resolvedBudget = created;
         }
         if (!resolvedBudget?.id) {
           throw new Error("Could not resolve budget month after save");
@@ -1348,7 +1361,13 @@ function useFinanceDataInternal() {
           month: currentMonth,
           createdAt,
         };
-      } catch {
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn("[finance] addExpense failed, queued offline", err);
+        }
+        toast.error("Couldn't save expense to the server", {
+          description: err instanceof Error ? err.message : "It will be retried later.",
+        });
         const offlineExpense: PendingExpenseItem = {
           id: `offline-${newExpenseId}`,
           amountCents: expense.amountCents,
