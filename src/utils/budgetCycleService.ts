@@ -65,6 +65,39 @@ async function closeCycleIfNeeded(cycle: BudgetCycle): Promise<void> {
 }
 
 /**
+ * When the income schedule changes mid-cycle, move the end of the current
+ * (latest) cycle to the next payday under the new schedule, so e.g. a
+ * Nov 15 – Dec 1 cycle frozen under the old schedule becomes Nov 15 – Dec 15
+ * after switching to the 15th. Closed/past cycles are never touched, and the
+ * cycle must still contain today after the change.
+ */
+async function realignCurrentCycleToSchedule(params: {
+  cycle: BudgetCycle;
+  cycles: BudgetCycle[];
+  incomeCycle: IncomeCycle | null;
+  todayStr: string;
+}): Promise<void> {
+  const { cycle, cycles, incomeCycle, todayStr } = params;
+  if (!isIncomeCycleConfigured(incomeCycle)) return;
+
+  const scheduleType = scheduleTypeFromIncomeCycle(incomeCycle);
+  if (cycle.scheduleType === scheduleType) return;
+
+  const hasLaterCycle = cycles.some((c) => c.startDate > cycle.startDate);
+  if (hasLaterCycle) return;
+
+  const nextEnd = computeCycleEndIso(incomeCycle, cycle.startDate);
+  if (nextEnd <= todayStr) return;
+
+  const { error } = await supabase
+    .from("budget_cycles")
+    .update({ end_date: nextEnd, schedule_type: scheduleType })
+    .eq("id", cycle.id)
+    .eq("user_id", cycle.userId);
+  if (error) throw new Error(error.message);
+}
+
+/**
  * Ensure the chain of cycles reaches "today" with no gaps/overlaps.
  * Next cycle always starts at previous.end_date.
  * New schedule only affects end_date of newly created cycles (transition cycles).
@@ -128,6 +161,12 @@ export async function ensureCyclesUpToToday(params: {
           .eq("id", covering.id)
           .eq("user_id", params.userId);
       }
+      await realignCurrentCycleToSchedule({
+        cycle: covering,
+        cycles,
+        incomeCycle: params.incomeCycle,
+        todayStr,
+      });
       return fetchCyclesForUser(params.userId);
     }
 
