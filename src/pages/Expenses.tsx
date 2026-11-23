@@ -28,6 +28,7 @@ export default function ExpensesPage() {
     allCategories,
     incomeCycle,
     selectedCycle,
+    budgetCycles,
     categoryLimitsForMonth,
   } = useSupabaseFinanceData();
 
@@ -133,6 +134,7 @@ export default function ExpensesPage() {
               categories={allCategories}
               monthScope={currentMonth}
               selectedCycle={selectedCycle}
+              budgetCycles={budgetCycles}
               onAddExpense={addExpense}
               onUpdate={updateExpense}
               onDelete={deleteExpense}

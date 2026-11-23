@@ -88,6 +88,10 @@ import {
   isDateInBudgetCycle,
 } from "@/utils/budgetCycles";
 import { ensureCyclesUpToToday } from "@/utils/budgetCycleService";
+import {
+  EXPENSE_DATE_OUTSIDE_CYCLES_MESSAGE,
+  resolveExpenseCycleMonth,
+} from "@/utils/expenseFormValidation";
 import { useCycleIncome, expensesQueryKey } from "@/hooks/useCycleIncome";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -444,7 +448,19 @@ function useFinanceDataInternal() {
   const [incomeCycle, setIncomeCycle] = useState<IncomeCycle | null>(() =>
     readIncomeCycle(financeUserId || undefined),
   );
-  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  /**
+   * Which user's settings finished loading. A plain boolean raced on login:
+   * the no-user branch set it true, and the cycle effect ran for the new user
+   * before its schedule loaded, freezing a calendar-month cycle.
+   */
+  const [hydratedForUserId, setHydratedForUserId] = useState<string | null>(null);
+  /**
+   * User whose income schedule is trustworthy for cycle generation. Stays unset
+   * when the settings fetch failed and no local schedule exists, so cycles are
+   * never generated from a missing schedule.
+   */
+  const [cycleSettingsUserId, setCycleSettingsUserId] = useState<string | null>(null);
+  const settingsHydrated = hydratedForUserId !== null && hydratedForUserId === financeUserId;
   const [monthSelectionSource, setMonthSelectionSource] = useState<MonthSelectionSource>(
     isDemoMode ? "demo" : "default_current_month",
   );
@@ -461,7 +477,7 @@ function useFinanceDataInternal() {
 
   useEffect(() => {
     if (isDemoMode) {
-      setSettingsHydrated(true);
+      setHydratedForUserId(financeUserId);
       setMonthSelectionSource("demo");
       setSettingsSource("none");
       setDisplayCurrencyState("EUR");
@@ -469,7 +485,8 @@ function useFinanceDataInternal() {
     }
 
     if (!financeUserId) {
-      setSettingsHydrated(true);
+      setHydratedForUserId("");
+      setCycleSettingsUserId(null);
       setMonthSelectionSource("default_current_month");
       setSettingsSource("none");
       setDisplayCurrencyState("EUR");
@@ -477,7 +494,8 @@ function useFinanceDataInternal() {
     }
 
     let cancelled = false;
-    setSettingsHydrated(false);
+    setHydratedForUserId(null);
+    setCycleSettingsUserId(null);
     // Temporary cache before Supabase settings win (avoids EUR flicker).
     const cachedCurrency = readDisplayCurrencyFromLocalStorage(financeUserId);
     if (cachedCurrency) {
@@ -557,7 +575,11 @@ function useFinanceDataInternal() {
         setCurrentMonthState(normalizeYearMonthYm(resolvedMonth));
       }
 
-      setSettingsHydrated(true);
+      setHydratedForUserId(financeUserId);
+      // remote === null means the settings fetch failed (a missing row returns
+      // an object). Without a local schedule we cannot know the payday.
+      const scheduleTrusted = remote !== null || localCycle !== null;
+      setCycleSettingsUserId(scheduleTrusted ? financeUserId : null);
     })();
 
     return () => {
@@ -577,10 +599,12 @@ function useFinanceDataInternal() {
           });
         }
       }
-      // Closed cycles keep their frozen dates. ensureCyclesUpToToday re-runs on
-      // this change and realigns only the current cycle's end to the new payday.
+      // Schedule preference only — do not rewrite frozen cycle dates or jump month
+      // via recomputed windows. Future cycles use the new schedule at creation time.
       if (normalized) {
         setMonthSelectionSource("income_cycle_active");
+        // An explicitly chosen schedule is trustworthy for cycle generation.
+        if (financeUserId) setCycleSettingsUserId(financeUserId);
       }
     },
     [financeUserId, isDemoMode],
@@ -609,7 +633,7 @@ function useFinanceDataInternal() {
   }, [currentMonth, incomeCycle]);
 
   useEffect(() => {
-    if (isDemoMode || !user || !hasSupabaseEnv || !settingsHydrated) {
+    if (isDemoMode || !user || !hasSupabaseEnv || cycleSettingsUserId !== user.id) {
       return;
     }
     let cancelled = false;
@@ -634,7 +658,7 @@ function useFinanceDataInternal() {
     return () => {
       cancelled = true;
     };
-  }, [incomeCycle, isDemoMode, settingsHydrated, user]);
+  }, [cycleSettingsUserId, incomeCycle, isDemoMode, user]);
 
   const loadFromSupabase = useCallback(
     async (userId: string, options?: { signal?: AbortSignal; showLoading?: boolean }) => {
@@ -1204,6 +1228,12 @@ function useFinanceDataInternal() {
 
       let cycle = selectedCycle;
       if (!cycle) {
+        if (cycleSettingsUserId !== user.id) {
+          toast.error("Could not save income", {
+            description: "Your income schedule hasn't loaded yet. Try again in a moment.",
+          });
+          return;
+        }
         const cycles = await ensureCyclesUpToToday({ userId: user.id, incomeCycle });
         setBudgetCycles(cycles);
         cycle =
@@ -1233,6 +1263,7 @@ function useFinanceDataInternal() {
     [
       currentMonth,
       cycleIncome.addIncome,
+      cycleSettingsUserId,
       incomeCycle,
       isDemoMode,
       selectedCycle,
@@ -1282,13 +1313,24 @@ function useFinanceDataInternal() {
       if (!user) {
         throw new Error("Not authenticated");
       }
-      const budget = data.budgets[currentMonth];
-      const budgetId = budget?.id ?? crypto.randomUUID();
-      const newExpenseId = crypto.randomUUID();
-      const createdAt = new Date().toISOString();
       // Store local calendar YYYY-MM-DD only — never an ISO timestamptz.
       const transactionDate =
         toDateInputValue(expense.date) || expense.date.slice(0, 10);
+      // Budget month comes from the frozen cycle containing the transaction
+      // date, not the month being viewed. Never clamp the date or invent a cycle.
+      const target = resolveExpenseCycleMonth(transactionDate, budgetCycles);
+      if (!target) {
+        throw new Error(
+          budgetCycles.length === 0
+            ? "Budget cycles are still loading. Try again in a moment."
+            : EXPENSE_DATE_OUTSIDE_CYCLES_MESSAGE,
+        );
+      }
+      const expenseMonth = target.month;
+      const budget = data.budgets[expenseMonth];
+      const budgetId = budget?.id ?? crypto.randomUUID();
+      const newExpenseId = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
 
       let newExpense: Expense | null = null;
       let resolvedBudgetId = budgetId;
@@ -1299,7 +1341,7 @@ function useFinanceDataInternal() {
           .from("budget_months")
           .select("id")
           .eq("user_id", user.id)
-          .eq("month", currentMonth)
+          .eq("month", expenseMonth)
           .maybeSingle();
         if (existingMonthError) {
           throw new Error(existingMonthError.message);
@@ -1311,7 +1353,7 @@ function useFinanceDataInternal() {
             {
               id: budgetId,
               user_id: user.id,
-              month: currentMonth,
+              month: expenseMonth,
               salary_cents: budget?.salaryCents ?? 0,
               currency: budget?.currency ?? "EUR",
               income_note: budget?.incomeNote ?? null,
@@ -1325,7 +1367,7 @@ function useFinanceDataInternal() {
             .from("budget_months")
             .select("id")
             .eq("user_id", user.id)
-            .eq("month", currentMonth)
+            .eq("month", expenseMonth)
             .maybeSingle();
           if (createdError) {
             throw new Error(createdError.message);
@@ -1342,7 +1384,7 @@ function useFinanceDataInternal() {
           id: newExpenseId,
           user_id: user.id,
           budget_month_id: resolvedBudgetId,
-          month: currentMonth,
+          month: expenseMonth,
           amount_cents: expense.amountCents,
           category: expense.category,
           date: transactionDate,
@@ -1358,15 +1400,15 @@ function useFinanceDataInternal() {
           date: transactionDate,
           id: newExpenseId,
           budgetMonthId: resolvedBudgetId,
-          month: currentMonth,
+          month: expenseMonth,
           createdAt,
         };
       } catch (err) {
         if (import.meta.env.DEV) {
           console.warn("[finance] addExpense failed, queued offline", err);
         }
-        toast.error("Couldn't save expense to the server", {
-          description: err instanceof Error ? err.message : "It will be retried later.",
+        toast.warning("Expense saved on this device only", {
+          description: `${err instanceof Error ? err.message : "Server error"}. It will sync later.`,
         });
         const offlineExpense: PendingExpenseItem = {
           id: `offline-${newExpenseId}`,
@@ -1374,7 +1416,7 @@ function useFinanceDataInternal() {
           category: expense.category,
           date: transactionDate,
           note: expense.note,
-          month: currentMonth,
+          month: expenseMonth,
           createdAt,
         };
         const nextPending = [...pendingExpenses, offlineExpense];
@@ -1388,13 +1430,13 @@ function useFinanceDataInternal() {
 
       setData((prev) => ({
         ...prev,
-        budgets: prev.budgets[currentMonth]
+        budgets: prev.budgets[expenseMonth]
           ? prev.budgets
           : {
               ...prev.budgets,
-              [currentMonth]: {
+              [expenseMonth]: {
                 id: resolvedBudgetId,
-                month: currentMonth,
+                month: expenseMonth,
                 salaryCents: budget?.salaryCents ?? 0,
                 currency: budget?.currency ?? "EUR",
                 createdAt,
@@ -1407,10 +1449,15 @@ function useFinanceDataInternal() {
       void queryClient.invalidateQueries({
         queryKey: expensesQueryKey(user.id, selectedCycle?.id),
       });
+      if (target.cycle.id !== selectedCycle?.id) {
+        void queryClient.invalidateQueries({
+          queryKey: expensesQueryKey(user.id, target.cycle.id),
+        });
+      }
 
       return newExpense;
     },
-    [currentMonth, data.budgets, isDemoMode, pendingExpenses, queryClient, selectedCycle?.id, user],
+    [budgetCycles, data.budgets, isDemoMode, pendingExpenses, queryClient, selectedCycle?.id, user],
   );
 
   const updateExpense = useCallback(
