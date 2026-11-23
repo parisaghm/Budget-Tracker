@@ -17,7 +17,10 @@ import type {
   ExpensesDateGroup as ExpensesDateGroupModel,
   ExpensesFilterChip,
 } from "@/utils/expensesPageModel";
-import { defaultExpenseDateForBudgetCycle } from "@/utils/budgetCycles";
+import { defaultExpenseDateForBudgetCycle, isDateInCycleRange } from "@/utils/budgetCycles";
+import { resolveExpenseCycleMonth } from "@/utils/expenseFormValidation";
+import { formatIncomeDateLabel } from "@/utils/incomeCycle";
+import { parseISO } from "date-fns";
 import { toDateInputValue } from "@/utils/money";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +48,8 @@ interface ExpensesListCardProps {
   monthScope: string;
   /** Selected income cycle — used so new expenses stamp today's date across month boundaries. */
   selectedCycle?: Pick<BudgetCycle, "startDate" | "endDate"> | null;
+  /** All frozen cycles; new expense dates must fall inside one of them. */
+  budgetCycles?: BudgetCycle[];
   onAddExpense: (expense: {
     amountCents: number;
     category: Category;
@@ -116,6 +121,7 @@ export function ExpensesListCard({
   categories,
   monthScope,
   selectedCycle = null,
+  budgetCycles = [],
   onAddExpense,
   onUpdate,
   onDelete,
@@ -233,7 +239,15 @@ export function ExpensesListCard({
         knownCategories: known,
       });
 
-      if (hidden) {
+      const target = resolveExpenseCycleMonth(date, budgetCycles);
+      const savedElsewhere =
+        target && selectedCycle && !isDateInCycleRange(date, selectedCycle.startDate, selectedCycle.endDate);
+
+      if (savedElsewhere) {
+        toast.success("Expense added to another cycle", {
+          description: `Saved to the ${formatIncomeDateLabel(parseISO(target.cycle.startDate))} – ${formatIncomeDateLabel(parseISO(target.cycle.endDate))} cycle.`,
+        });
+      } else if (hidden) {
         toast.success("Expense added", {
           description: "It may be hidden by your current filters or search.",
         });
@@ -280,6 +294,7 @@ export function ExpensesListCard({
             initialExpense={editingExpense}
             defaultTransactionDate={addFormDate}
             categories={categories}
+            cycles={budgetCycles}
             currency={currency}
             isPending={isSaving}
             onSubmit={handleInlineSubmit}

@@ -4,7 +4,9 @@ import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryEmojiIcon } from "@/components/icons/CategoryEmojiIcon";
 import type { Category, CategoryDef, Expense } from "@/types/finance";
-import { centsToEuros, eurosToCents, getCurrencySymbol, getTodayDate, toDateInputValue } from "@/utils/money";
+import type { BudgetCycle } from "@/types/budgetCycle";
+import { centsToEuros, getCurrencySymbol, getTodayDate, toDateInputValue } from "@/utils/money";
+import { parseExpenseAmountInput, validateExpenseForm } from "@/utils/expenseFormValidation";
 import { cn } from "@/lib/utils";
 
 export type ExpenseFormMode = "closed" | "adding" | "editing";
@@ -35,6 +37,8 @@ interface ExpenseInlineFormProps {
    */
   defaultTransactionDate?: string;
   categories: CategoryDef[];
+  /** Frozen budget cycles; the date must fall inside one of them. */
+  cycles?: Pick<BudgetCycle, "startDate" | "endDate">[] | null;
   currency: string;
   isPending?: boolean;
   onSubmit: (payload: ExpenseInlineSubmitPayload) => void | Promise<void>;
@@ -45,17 +49,6 @@ interface ExpenseInlineFormProps {
 function amountToInputValue(cents: number | undefined): string {
   if (cents == null || !Number.isFinite(cents)) return "";
   return centsToEuros(cents).toFixed(2);
-}
-
-function parseAmountInput(raw: string): { ok: true; cents: number } | { ok: false } {
-  const trimmed = raw.trim().replace(",", ".");
-  if (!trimmed) return { ok: false };
-  if (!/^\d+(\.\d{0,2})?$/.test(trimmed)) return { ok: false };
-  const value = Number.parseFloat(trimmed);
-  if (!Number.isFinite(value) || value <= 0) return { ok: false };
-  const cents = eurosToCents(value);
-  if (cents <= 0) return { ok: false };
-  return { ok: true, cents };
 }
 
 function buildInitialState(
@@ -89,6 +82,7 @@ export function ExpenseInlineForm({
   initialExpense = null,
   defaultTransactionDate,
   categories,
+  cycles = null,
   currency,
   isPending = false,
   onSubmit,
@@ -112,6 +106,10 @@ export function ExpenseInlineForm({
   const [date, setDate] = useState(seed.date);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [showErrors, setShowErrors] = useState(false);
+  /** Fields the user has interacted with; their errors show inline right away. */
+  const [touched, setTouched] = useState<Partial<Record<keyof FieldErrors, boolean>>>({});
+  const touch = (field: keyof FieldErrors) =>
+    setTouched((prev) => (prev[field] ? prev : { ...prev, [field]: true }));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -127,34 +125,32 @@ export function ExpenseInlineForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only focus
   }, []);
 
-  const validate = (): FieldErrors => {
-    const next: FieldErrors = {};
-    // Allow empty note so existing "Untitled expense" rows remain editable.
-    // For add mode, still require a merchant/description.
-    if (mode === "adding" && !note.trim()) {
-      next.note = "Enter where you spent the money.";
-    }
-
-    const parsed = parseAmountInput(amount);
-    if (!parsed.ok) {
-      next.amount = `Enter an amount greater than ${currencySymbol}0.00.`;
-    }
-
-    if (!category || !knownCategoryValues.has(category)) {
-      next.category = "Choose a category.";
-    }
-
-    if (!toDateInputValue(date)) {
-      next.date = "Choose a date.";
-    }
-
-    return next;
-  };
-
-  const validation = validate();
+  const { errors: validation, blockingReason } = validateExpenseForm({
+    mode,
+    note,
+    amount,
+    category,
+    date,
+    knownCategories: knownCategoryValues,
+    // Editing an older expense keeps working unless its date is changed.
+    cycles: mode === "adding" || date !== seed.date ? cycles : null,
+    currencySymbol,
+  });
+  const validate = (): FieldErrors => validation;
   const isValid = Object.keys(validation).length === 0;
-  const fieldErrors = showErrors ? validation : errors;
+  // After a submit attempt show every error; before that, only touched fields.
+  const fieldErrors: FieldErrors = showErrors
+    ? validation
+    : {
+        ...errors,
+        note: touched.note ? validation.note : errors.note,
+        amount: touched.amount ? validation.amount : errors.amount,
+        category: touched.category ? validation.category : errors.category,
+        date: touched.date ? validation.date : errors.date,
+      };
   const selectedCategory = categories.find((c) => c.value === category);
+  const disabledReason =
+    categories.length === 0 ? "Add a budget category first to save expenses" : blockingReason;
 
   const handleSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -165,7 +161,7 @@ export function ExpenseInlineForm({
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const parsed = parseAmountInput(amount);
+    const parsed = parseExpenseAmountInput(amount);
     if (!parsed.ok || !category) return;
 
     const transactionDate = toDateInputValue(date) || getTodayDate();
@@ -203,6 +199,7 @@ export function ExpenseInlineForm({
   const categoryErrorId = `${formId}-category-error`;
   const dateErrorId = `${formId}-date-error`;
   const formErrorId = `${formId}-form-error`;
+  const disabledReasonId = `${formId}-disabled-reason`;
 
   return (
     <form
@@ -227,6 +224,7 @@ export function ExpenseInlineForm({
             value={note}
             onChange={(e) => {
               setNote(e.target.value);
+              touch("note");
               if (errors.note) setErrors((prev) => ({ ...prev, note: undefined }));
             }}
             placeholder="Where? e.g. K-Market"
@@ -267,6 +265,7 @@ export function ExpenseInlineForm({
               onChange={(e) => {
                 const next = e.target.value.replace(/[^\d.,]/g, "");
                 setAmount(next);
+                touch("amount");
                 if (errors.amount) setErrors((prev) => ({ ...prev, amount: undefined }));
               }}
               placeholder="0.00"
@@ -307,9 +306,13 @@ export function ExpenseInlineForm({
                 value={category}
                 onChange={(e) => {
                   setCategory(e.target.value);
+                  touch("category");
                   if (errors.category) setErrors((prev) => ({ ...prev, category: undefined }));
                 }}
+                onBlur={() => touch("category")}
                 disabled={isPending}
+                required
+                aria-required="true"
                 aria-invalid={Boolean(fieldErrors.category)}
                 aria-describedby={fieldErrors.category ? categoryErrorId : undefined}
                 className={cn(
@@ -324,7 +327,7 @@ export function ExpenseInlineForm({
                 )}
               >
                 <option value="" disabled>
-                  Category
+                  Category *
                 </option>
                 {categories.map((cat) => (
                   <option key={cat.value} value={cat.value}>
@@ -371,6 +374,7 @@ export function ExpenseInlineForm({
             value={date}
             onChange={(e) => {
               setDate(toDateInputValue(e.target.value) || e.target.value);
+              touch("date");
               if (errors.date) setErrors((prev) => ({ ...prev, date: undefined }));
             }}
             disabled={isPending}
@@ -401,6 +405,7 @@ export function ExpenseInlineForm({
         <Button
           type="submit"
           disabled={isPending || !isValid || categories.length === 0}
+          aria-describedby={!isPending && disabledReason ? disabledReasonId : undefined}
           className="h-11 w-full rounded-xl bg-primary px-5 text-sm font-semibold hover:bg-primary/90 sm:w-auto disabled:opacity-60"
         >
           {isPending ? "Saving…" : isEditing ? "Save changes" : "Save expense"}
@@ -415,6 +420,12 @@ export function ExpenseInlineForm({
           Cancel
         </Button>
       </div>
+
+      {!isPending && disabledReason ? (
+        <p id={disabledReasonId} className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+          {disabledReason}
+        </p>
+      ) : null}
     </form>
   );
 }

@@ -1,4 +1,4 @@
-import { format, parseISO, startOfDay, startOfMonth } from "date-fns";
+import { format, startOfDay, startOfMonth } from "date-fns";
 import { supabase } from "@/lib/supabase/client";
 import type { BudgetCycle } from "@/types/budgetCycle";
 import type { IncomeCycle } from "@/types/incomeCycle";
@@ -6,6 +6,7 @@ import {
   computeCycleEndIso,
   findCycleContainingDate,
   mapBudgetCycleRow,
+  resolveNextCycleWindow,
   scheduleTypeFromIncomeCycle,
   todayIso,
 } from "@/utils/budgetCycles";
@@ -59,39 +60,6 @@ async function closeCycleIfNeeded(cycle: BudgetCycle): Promise<void> {
   const { error } = await supabase
     .from("budget_cycles")
     .update({ status: "closed" })
-    .eq("id", cycle.id)
-    .eq("user_id", cycle.userId);
-  if (error) throw new Error(error.message);
-}
-
-/**
- * When the income schedule changes mid-cycle, move the end of the current
- * (latest) cycle to the next payday under the new schedule, so e.g. a
- * Nov 15 – Dec 1 cycle frozen under the old schedule becomes Nov 15 – Dec 15
- * after switching to the 15th. Closed/past cycles are never touched, and the
- * cycle must still contain today after the change.
- */
-async function realignCurrentCycleToSchedule(params: {
-  cycle: BudgetCycle;
-  cycles: BudgetCycle[];
-  incomeCycle: IncomeCycle | null;
-  todayStr: string;
-}): Promise<void> {
-  const { cycle, cycles, incomeCycle, todayStr } = params;
-  if (!isIncomeCycleConfigured(incomeCycle)) return;
-
-  const scheduleType = scheduleTypeFromIncomeCycle(incomeCycle);
-  if (cycle.scheduleType === scheduleType) return;
-
-  const hasLaterCycle = cycles.some((c) => c.startDate > cycle.startDate);
-  if (hasLaterCycle) return;
-
-  const nextEnd = computeCycleEndIso(incomeCycle, cycle.startDate);
-  if (nextEnd <= todayStr) return;
-
-  const { error } = await supabase
-    .from("budget_cycles")
-    .update({ end_date: nextEnd, schedule_type: scheduleType })
     .eq("id", cycle.id)
     .eq("user_id", cycle.userId);
   if (error) throw new Error(error.message);
@@ -161,12 +129,6 @@ export async function ensureCyclesUpToToday(params: {
           .eq("id", covering.id)
           .eq("user_id", params.userId);
       }
-      await realignCurrentCycleToSchedule({
-        cycle: covering,
-        cycles,
-        incomeCycle: params.incomeCycle,
-        todayStr,
-      });
       return fetchCyclesForUser(params.userId);
     }
 
@@ -181,22 +143,13 @@ export async function ensureCyclesUpToToday(params: {
     // today >= latest.endDate → close and create next starting at latest.endDate
     await closeCycleIfNeeded(latest);
 
-    const nextStart = latest.endDate;
-    let nextEnd: string;
-    let scheduleType: string;
-
-    if (isIncomeCycleConfigured(params.incomeCycle)) {
-      nextEnd = computeCycleEndIso(params.incomeCycle, nextStart);
-      scheduleType = scheduleTypeFromIncomeCycle(params.incomeCycle);
-    } else {
-      const start = parseISO(nextStart);
-      // Next 1st of month strictly after start (transition or calendar month)
-      nextEnd = format(new Date(start.getFullYear(), start.getMonth() + 1, 1), "yyyy-MM-dd");
-      if (nextEnd <= nextStart) {
-        nextEnd = format(new Date(start.getFullYear(), start.getMonth() + 2, 1), "yyyy-MM-dd");
-      }
-      scheduleType = "calendar_month";
-    }
+    // Settings missing → continue the latest frozen payday schedule, never
+    // silently switch to calendar months.
+    const {
+      startDate: nextStart,
+      endDate: nextEnd,
+      scheduleType,
+    } = resolveNextCycleWindow({ incomeCycle: params.incomeCycle, latest });
 
     if (nextEnd <= nextStart) {
       throw new Error(`Invalid next cycle end ${nextEnd} for start ${nextStart}`);

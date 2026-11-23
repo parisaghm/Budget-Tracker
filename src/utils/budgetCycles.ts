@@ -59,6 +59,55 @@ export function scheduleTypeFromIncomeCycle(cycle: IncomeCycle | null | undefine
 }
 
 /**
+ * Inverse of scheduleTypeFromIncomeCycle. Returns null for non-payday schedule
+ * types ("calendar_month", "legacy_month", "unconfigured", unknown values).
+ */
+export function incomeCycleFromScheduleType(scheduleType: string | null | undefined): IncomeCycle | null {
+  if (!scheduleType) return null;
+  if (scheduleType === "monthly_1" || scheduleType === "monthly_15" || scheduleType === "monthly_last") {
+    return { preset: scheduleType };
+  }
+  const custom = scheduleType.match(/^custom:(\d{1,2})$/);
+  if (custom) {
+    const day = Number(custom[1]);
+    if (day >= 1 && day <= 31) return { preset: "custom", day };
+  }
+  return null;
+}
+
+/**
+ * Window for the cycle that follows `latest` (starts at latest.endDate).
+ * Uses the configured schedule; when settings are unavailable it continues the
+ * latest frozen cycle's payday schedule instead of falling back to calendar
+ * months, so a temporarily-missing schedule can never freeze a "next 1st" end.
+ */
+export function resolveNextCycleWindow(params: {
+  incomeCycle: IncomeCycle | null | undefined;
+  latest: Pick<BudgetCycle, "endDate" | "scheduleType">;
+}): { startDate: string; endDate: string; scheduleType: string } {
+  const startDate = params.latest.endDate.slice(0, 10);
+  const schedule = isIncomeCycleConfigured(params.incomeCycle)
+    ? params.incomeCycle
+    : incomeCycleFromScheduleType(params.latest.scheduleType);
+
+  if (schedule) {
+    return {
+      startDate,
+      endDate: computeCycleEndIso(schedule, startDate),
+      scheduleType: scheduleTypeFromIncomeCycle(schedule),
+    };
+  }
+
+  const start = parseISO(startDate);
+  // Next 1st of month strictly after start (transition or calendar month)
+  let endDate = format(new Date(start.getFullYear(), start.getMonth() + 1, 1), "yyyy-MM-dd");
+  if (endDate <= startDate) {
+    endDate = format(new Date(start.getFullYear(), start.getMonth() + 2, 1), "yyyy-MM-dd");
+  }
+  return { startDate, endDate, scheduleType: "calendar_month" };
+}
+
+/**
  * End date (exclusive) for a cycle that starts on `startDate`, using the given schedule.
  * Uses the next payday strictly after start so start Jul 15 + monthly_15 → end Aug 15.
  */
